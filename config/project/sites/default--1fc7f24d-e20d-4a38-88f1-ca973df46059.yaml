@@ -1,0 +1,8 @@
+baseUrl: $PRIMARY_SITE_URL
+handle: default
+hasUrls: true
+language: de-CH
+name: CRM
+primary: true
+siteGroup: 59bd424f-4b4e-4449-898f-c3c927f0a4c8 # CRM
+sortOrder: 1

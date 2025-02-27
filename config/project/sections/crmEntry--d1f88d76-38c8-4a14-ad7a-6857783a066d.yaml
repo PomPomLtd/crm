@@ -1,0 +1,28 @@
+defaultPlacement: end
+enableVersioning: true
+entryTypes:
+  -
+    uid: dc6cf8eb-22af-4b1d-8b65-efefa371adf9 # CRM Entry
+handle: crmEntry
+maxAuthors: 1
+name: 'CRM Entry'
+previewTargets:
+  -
+    __assoc__:
+      -
+        - label
+        - 'Primäre Eintrag Seite'
+      -
+        - urlFormat
+        - '{url}'
+      -
+        - refresh
+        - '1'
+propagationMethod: all
+siteSettings:
+  1fc7f24d-e20d-4a38-88f1-ca973df46059: # CRM
+    enabledByDefault: true
+    hasUrls: false
+    template: null
+    uriFormat: null
+type: channel

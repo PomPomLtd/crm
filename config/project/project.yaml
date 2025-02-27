@@ -1,0 +1,33 @@
+dateModified: 1740646461
+email:
+  fromEmail: hello@pom-pom.ch
+  fromName: CRM
+  transportType: craft\mail\transportadapters\Sendmail
+meta:
+  __names__:
+    1fc7f24d-e20d-4a38-88f1-ca973df46059: CRM # CRM
+    59bd424f-4b4e-4449-898f-c3c927f0a4c8: CRM # CRM
+    12074a27-13af-4f17-bb99-f7c6c45f0e7f: 'Link / URL' # Link / URL
+    081924e9-6624-4e96-a202-5bd71ea7d7ce: 'ZIP Code' # ZIP Code
+    05122057-522b-4eca-93d3-827592ca5f53: Profession # Profession
+    d1f88d76-38c8-4a14-ad7a-6857783a066d: 'CRM Entry' # CRM Entry
+    dc6cf8eb-22af-4b1d-8b65-efefa371adf9: 'CRM Entry' # CRM Entry
+    ee6d383e-e5e6-4bf3-bf33-3ccd8d4adb8a: 'Text Field' # Text Field
+plugins:
+  feed-me:
+    edition: standard
+    enabled: true
+    schemaVersion: 5.1.1
+system:
+  edition: solo
+  live: true
+  name: CRM
+  schemaVersion: 5.6.0.2
+  timeZone: America/Los_Angeles
+users:
+  allowPublicRegistration: false
+  defaultGroup: null
+  photoSubpath: null
+  photoVolumeUid: null
+  require2fa: false
+  requireEmailVerification: true

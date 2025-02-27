@@ -1,0 +1,19 @@
+columnSuffix: null
+handle: zipCode
+instructions: null
+name: 'ZIP Code'
+searchable: false
+settings:
+  decimals: 0
+  defaultValue: null
+  max: 9999
+  min: 1000
+  prefix: null
+  previewCurrency: null
+  previewFormat: decimal
+  size: null
+  step: null
+  suffix: null
+translationKeyFormat: null
+translationMethod: none
+type: craft\fields\Number
