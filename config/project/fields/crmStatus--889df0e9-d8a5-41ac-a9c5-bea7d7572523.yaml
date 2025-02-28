@@ -1,0 +1,55 @@
+columnSuffix: null
+handle: crmStatus
+instructions: null
+name: 'CRM Status'
+searchable: false
+settings:
+  customOptions: false
+  options:
+    -
+      __assoc__:
+        -
+          - label
+          - Neu
+        -
+          - value
+          - new
+        -
+          - default
+          - '1'
+    -
+      __assoc__:
+        -
+          - label
+          - 'Keine Zuweisung / Zuweisungsbereich auf Webseite'
+        -
+          - value
+          - keineZuweisungZuweisungsbereichAufWebseite
+        -
+          - default
+          - ''
+    -
+      __assoc__:
+        -
+          - label
+          - 'PDF Prozess auf Webseite'
+        -
+          - value
+          - pdfProzessAufWebseite
+        -
+          - default
+          - ''
+    -
+      __assoc__:
+        -
+          - label
+          - 'Formular auf Webseite'
+        -
+          - value
+          - formularAufWebseite
+        -
+          - default
+          - ''
+translationKeyFormat: null
+translationMethod: none
+type: craft\fields\Dropdown

@@ -3,9 +3,9 @@ enableVersioning: true
 entryTypes:
   -
     uid: dc6cf8eb-22af-4b1d-8b65-efefa371adf9 # CRM Entry
-handle: crmEntry
+handle: medicalCenters
 maxAuthors: 1
-name: 'CRM Entry'
+name: 'Medical Centers'
 previewTargets:
   -
     __assoc__:

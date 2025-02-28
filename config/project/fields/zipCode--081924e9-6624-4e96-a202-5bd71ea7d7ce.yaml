@@ -10,7 +10,7 @@ settings:
   min: 1000
   prefix: null
   previewCurrency: null
-  previewFormat: decimal
+  previewFormat: none
   size: null
   step: null
   suffix: null
