@@ -148,6 +148,22 @@ fieldLayouts:
             warning: null
             width: 100
           -
+            dateAdded: '2025-03-01T19:41:14+00:00'
+            elementCondition: null
+            fieldUid: 12074a27-13af-4f17-bb99-f7c6c45f0e7f # Link / URL
+            handle: null
+            includeInCards: false
+            instructions: null
+            label: 'Offizielle Webseite'
+            providesThumbs: false
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: ee61a20b-95a1-4265-b42d-84a780431065
+            userCondition: null
+            warning: null
+            width: 100
+          -
             dateAdded: '2025-02-27T14:33:21+00:00'
             elementCondition: null
             fieldUid: 12074a27-13af-4f17-bb99-f7c6c45f0e7f # Link / URL
@@ -195,6 +211,38 @@ fieldLayouts:
             userCondition: null
             warning: null
             width: 100
+          -
+            dateAdded: '2025-03-01T19:42:31+00:00'
+            elementCondition: null
+            fieldUid: c2fc5bbf-79d0-4c09-a4e8-c71748f11879 # Zuweisung
+            handle: null
+            includeInCards: false
+            instructions: null
+            label: null
+            providesThumbs: false
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: 607e4536-c45d-485d-9a69-428323edd2dd
+            userCondition: null
+            warning: null
+            width: 25
+          -
+            dateAdded: '2025-03-01T19:42:31+00:00'
+            elementCondition: null
+            fieldUid: ee6d383e-e5e6-4bf3-bf33-3ccd8d4adb8a # Text Field
+            handle: zuweisungText
+            includeInCards: false
+            instructions: null
+            label: 'Gefundener Zuweisungs-Text'
+            providesThumbs: false
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: 88073a01-8f63-47b3-836f-c2fa7c41696e
+            userCondition: null
+            warning: null
+            width: 75
         name: Inhalt
         uid: d7fc051b-a001-4409-ad2b-479fcc4eb7a7
         userCondition: null
