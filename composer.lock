@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "874bd3f11b82e24dd97e835eacb66854",
+    "content-hash": "c1097533936a1ebd0d47871e99ab6278",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -521,16 +521,16 @@
         },
         {
             "name": "craftcms/cms",
-            "version": "5.6.10.2",
+            "version": "5.6.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
-                "reference": "131f86abbd7ff1c932e3ab7eed5c993c4d08f968"
+                "reference": "72064b36c095def517b68141ecab6169a2499b12"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/131f86abbd7ff1c932e3ab7eed5c993c4d08f968",
-                "reference": "131f86abbd7ff1c932e3ab7eed5c993c4d08f968",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/72064b36c095def517b68141ecab6169a2499b12",
+                "reference": "72064b36c095def517b68141ecab6169a2499b12",
                 "shasum": ""
             },
             "require": {
@@ -647,7 +647,7 @@
                 "rss": "https://github.com/craftcms/cms/releases.atom",
                 "source": "https://github.com/craftcms/cms"
             },
-            "time": "2025-02-26T19:27:31+00:00"
+            "time": "2025-03-05T00:19:27+00:00"
         },
         {
             "name": "craftcms/feed-me",
@@ -3912,6 +3912,61 @@
                 "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
             },
             "time": "2021-10-29T13:26:27+00:00"
+        },
+        {
+            "name": "putyourlightson/craft-dashboard-begone",
+            "version": "3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/putyourlightson/craft-dashboard-begone.git",
+                "reference": "ef1874a58d9eabd0d05b8edad01f2a093c3f956f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/putyourlightson/craft-dashboard-begone/zipball/ef1874a58d9eabd0d05b8edad01f2a093c3f956f",
+                "reference": "ef1874a58d9eabd0d05b8edad01f2a093c3f956f",
+                "shasum": ""
+            },
+            "require": {
+                "craftcms/cms": "^5.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "craftcms/ecs": "dev-main",
+                "craftcms/phpstan": "dev-main"
+            },
+            "type": "craft-plugin",
+            "extra": {
+                "name": "Dashboard Begone",
+                "class": "putyourlightson\\dashboardbegone\\DashboardBegone",
+                "handle": "dashboard-begone",
+                "developer": "PutYourLightsOn",
+                "changelogUrl": "https://raw.githubusercontent.com/putyourlightson/craft-dashboard-begone/v3/CHANGELOG.md",
+                "developerUrl": "https://putyourlightson.com/"
+            },
+            "autoload": {
+                "psr-4": {
+                    "putyourlightson\\dashboardbegone\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Removes the dashboard and redirects users to entries.",
+            "homepage": "https://github.com/putyourlightson/craft-dashboard-begone",
+            "keywords": [
+                "Craft",
+                "cms",
+                "craftcms",
+                "dashboard"
+            ],
+            "support": {
+                "docs": "https://putyourlightson.com/plugins/dashboard-begone",
+                "issues": "https://github.com/putyourlightson/craft-dashboard-begone/issues",
+                "source": "https://github.com/putyourlightson/craft-dashboard-begone"
+            },
+            "time": "2024-04-02T15:17:40+00:00"
         },
         {
             "name": "ralouphie/getallheaders",

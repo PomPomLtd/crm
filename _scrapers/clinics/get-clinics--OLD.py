@@ -8,8 +8,8 @@ import socket
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# Base URL for the overview page
-overview_url = "https://www.onedoc.ch/de/medizinisches-zentrum"
+# Base URL for the clinics overview page
+overview_url = "https://www.onedoc.ch/de/klinik"
 
 # Headers to make the request look like it's coming from a browser
 headers = {
@@ -130,50 +130,73 @@ def get_max_page_number(html):
     
     return max_page
 
-def extract_medical_centers(html, canton_name):
-    """Extract medical centers data from a canton page"""
+def extract_clinics(html, canton_name):
+    """Extract clinic data from a canton page"""
     if not html:
         return []
     
     soup = BeautifulSoup(html, 'html.parser')
-    center_items = soup.find_all('div', class_='directory-item')
+    clinic_items = soup.find_all('div', class_='directory-item')
     
-    centers = []
-    for item in center_items:
-        # Extract center name and URL
+    clinics = []
+    for item in clinic_items:
+        # Extract clinic name and URL
         name_element = item.find('a')
         name = name_element.text.strip() if name_element else "Unknown"
-        center_url = "https://www.onedoc.ch" + name_element['href'] if name_element and name_element.has_attr('href') else "Unknown"
+        clinic_url = "https://www.onedoc.ch" + name_element['href'] if name_element and name_element.has_attr('href') else "Unknown"
         
         # Extract address
         address_element = item.find('div', class_='directory-item-text-normal')
         address = address_element.text.strip() if address_element else "Unknown"
         
-        centers.append({
+        # Parse address into components (street, postal code, city)
+        street = ""
+        postal_code = ""
+        city = ""
+        
+        if address != "Unknown" and ", " in address:
+            address_parts = address.split(", ")
+            street = address_parts[0]
+            
+            if len(address_parts) > 1:
+                postal_city = address_parts[1]
+                # Extract postal code (usually 4 digits) and city
+                import re
+                postal_match = re.search(r'(\d{4})\s+(.*)', postal_city)
+                if postal_match:
+                    postal_code = postal_match.group(1)
+                    city = postal_match.group(2)
+                else:
+                    city = postal_city
+                
+        clinics.append({
             'name': name,
             'address': address,
-            'url': center_url,
+            'street': street,
+            'postal_code': postal_code,
+            'city': city,
+            'url': clinic_url,
             'canton': canton_name
         })
     
-    return centers
+    return clinics
 
-def save_to_csv(data, filename="medical_centers.csv"):
-    """Save the centers data to a CSV file"""
+def save_to_csv(data, filename="clinics.csv"):
+    """Save the clinics data to a CSV file"""
     if not data:
         print("No data to save")
         return
     
     with open(filename, 'w', newline='', encoding='utf-8') as f:
-        fieldnames = ['name', 'address', 'canton', 'url']
+        fieldnames = ['name', 'address', 'street', 'postal_code', 'city', 'canton', 'url']
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
     
-    print(f"Saved {len(data)} medical centers to {filename}")
+    print(f"Saved {len(data)} clinics to {filename}")
     print(f"File saved at: {os.path.abspath(filename)}")
 
-def save_progress(data, filename="medical_centers_progress.csv"):
+def save_progress(data, filename="clinics_progress.csv"):
     """Save progress data to a CSV file, appending if it exists"""
     if not data:
         return
@@ -182,7 +205,7 @@ def save_progress(data, filename="medical_centers_progress.csv"):
     file_exists = os.path.isfile(filename)
     
     with open(filename, 'a', newline='', encoding='utf-8') as f:
-        fieldnames = ['name', 'address', 'canton', 'url']
+        fieldnames = ['name', 'address', 'street', 'postal_code', 'city', 'canton', 'url']
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         
         if not file_exists:
@@ -190,10 +213,10 @@ def save_progress(data, filename="medical_centers_progress.csv"):
         
         writer.writerows(data)
     
-    print(f"Saved progress: {len(data)} centers appended to {filename}")
+    print(f"Saved progress: {len(data)} clinics appended to {filename}")
 
 def main():
-    all_centers = []
+    all_clinics = []
     
     # Fetch the overview page
     overview_html = fetch_page(overview_url)
@@ -222,12 +245,12 @@ def main():
         print(f"Canton {canton_name} has {max_page} pages")
         
         # Process first page
-        centers_page1 = extract_medical_centers(canton_html, canton_name)
-        print(f"Found {len(centers_page1)} centers on page 1")
-        all_centers.extend(centers_page1)
+        clinics_page1 = extract_clinics(canton_html, canton_name)
+        print(f"Found {len(clinics_page1)} clinics on page 1")
+        all_clinics.extend(clinics_page1)
         
         # Save progress after each page
-        save_progress(centers_page1)
+        save_progress(clinics_page1)
         
         # Process remaining pages
         for page_num in range(2, max_page + 1):
@@ -238,12 +261,12 @@ def main():
                 print(f"Failed to fetch page {page_num} for {canton_name}. Skipping.")
                 continue
             
-            centers = extract_medical_centers(page_html, canton_name)
-            print(f"Found {len(centers)} centers on page {page_num}")
-            all_centers.extend(centers)
+            clinics = extract_clinics(page_html, canton_name)
+            print(f"Found {len(clinics)} clinics on page {page_num}")
+            all_clinics.extend(clinics)
             
             # Save progress after each page
-            save_progress(centers)
+            save_progress(clinics)
             
             # Add a small delay between requests
             delay = random.uniform(1, 3)
@@ -251,8 +274,8 @@ def main():
             time.sleep(delay)
     
     # Save all results to final CSV
-    save_to_csv(all_centers, "all_medical_centers.csv")
-    print(f"Scraping completed. Total centers found: {len(all_centers)}")
+    save_to_csv(all_clinics, "all_clinics.csv")
+    print(f"Scraping completed. Total clinics found: {len(all_clinics)}")
 
 if __name__ == "__main__":
     main()

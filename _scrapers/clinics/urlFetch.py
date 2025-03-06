@@ -22,7 +22,6 @@ SEARCH_URL = "https://www.searchapi.io/api/v1/search"
 banned_domains = ["onedoc.ch", "comparis.ch", "doktor.ch"]
 
 # We'll communicate progress via a Queue
-# We'll put dictionaries like {"type": "PROGRESS", ...}, {"type": "DONE", ...}, {"type": "CANCEL", ...}
 progress_queue = queue.Queue()
 
 # We track the number of rate limit errors globally
@@ -40,9 +39,7 @@ def format_time(seconds: float) -> str:
 # ---------------------------------------
 # Core logic for fetching and checking
 # ---------------------------------------
-
 def fetch_company_url(company_name, city, max_retries=3):
-    """Use SearchAPI's Google engine to fetch the top (num=1) result for a query, with 35s timeout."""
     global rate_limit_errors
 
     query = company_name
@@ -68,26 +65,21 @@ def fetch_company_url(company_name, city, max_retries=3):
                     "Chrome/115.0 Safari/537.36"
                 )
             }
-            # Increase to 35 seconds
             response = requests.get(SEARCH_URL, params=params, headers=headers, timeout=35)
-            # Check if rate-limited or blocked
             if response.status_code in [429, 403]:
                 raise requests.exceptions.RequestException(
                     f"Rate limit / Block encountered (status {response.status_code})"
                 )
             response.raise_for_status()
             data = response.json()
-            # Return the first organic link if found
             if "organic_results" in data and len(data["organic_results"]) > 0:
                 return data["organic_results"][0].get("link", "")
             return ""
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             rate_limit_errors += 1
-            # A short backoff
             wait_time = random.uniform(5, 10) * (attempt + 1)
             time.sleep(wait_time)
             attempt += 1
-
     return ""
 
 def check_zuweisung(url):
@@ -131,10 +123,6 @@ def is_banned_url(url):
         return False
 
 def process_one_row(index, row, last_processed_deque):
-    """
-    Perform the 'fetch URL -> check banned -> check keywords' sequence.
-    Return (index, updated_row). We'll also update the ring buffer of last processed items.
-    """
     if stop_event.is_set():
         return index, row
 
@@ -160,7 +148,6 @@ def process_one_row(index, row, last_processed_deque):
     row["Zuweisung"] = zuweisung_flag
     row["Triggered_Keywords"] = ", ".join(triggered_keywords)
 
-    # Keep track of the last processed company & URL in the ring buffer
     short_url = url if len(url) < 60 else (url[:57] + "...")
     last_processed_deque.append((company_name, short_url))
 
@@ -169,13 +156,20 @@ def process_one_row(index, row, last_processed_deque):
 # ---------------------------------------
 # Graceful Worker Thread
 # ---------------------------------------
-
-def worker_thread(rows_to_process, total_rows, already_processed_count, start_time):
+def worker_thread(
+    rows_to_process,
+    total_rows,
+    already_processed_count,
+    start_time,
+    all_rows,
+    output_file
+):
     """
     1) Submits tasks to ThreadPoolExecutor
     2) On each finished row, sends PROGRESS to the queue (including the last processed URLs)
-    3) If stop_event is set, we do a graceful shutdown
-    4) Otherwise, once all tasks done, we send 'DONE'
+    3) Writes the row to CSV immediately after it is processed
+    4) If stop_event is set, we do a graceful shutdown
+    5) Otherwise, once all tasks done, we send 'DONE'
     """
     updated_rows = [None] * total_rows
     to_process_count = len(rows_to_process)
@@ -185,6 +179,22 @@ def worker_thread(rows_to_process, total_rows, already_processed_count, start_ti
     # We'll keep a ring buffer of the last 5 processed items
     last_processed_deque = deque(maxlen=5)
 
+    # Prepare CSV writing:
+    # Build fieldnames from the entire dataset
+    fieldnames = list(all_rows[0].keys())
+    for new_col in ["official_website", "Zuweisung", "Triggered_Keywords"]:
+        if new_col not in fieldnames:
+            fieldnames.append(new_col)
+
+    # Open the output file once in append mode
+    file_is_empty = (not os.path.exists(output_file)) or (os.stat(output_file).st_size == 0)
+    csvfile = open(output_file, 'a', newline='', encoding='utf-8')
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    if file_is_empty:
+        writer.writeheader()
+    write_lock = threading.Lock()
+
+    # Use a thread pool to process each row
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_map = {}
         for (i, row) in rows_to_process:
@@ -194,12 +204,18 @@ def worker_thread(rows_to_process, total_rows, already_processed_count, start_ti
         for future in as_completed(future_map):
             if stop_event.is_set():
                 executor.shutdown(wait=False, cancel_futures=True)
+                csvfile.close()
                 progress_queue.put({"type": "CANCEL"})
                 return
 
             row_start = time.time()
             idx, updated_row = future.result()
             updated_rows[idx] = updated_row
+
+            # Write to CSV immediately
+            with write_lock:
+                writer.writerow(updated_row)
+                csvfile.flush()
 
             active_count += 1
             row_duration = time.time() - row_start
@@ -221,11 +237,11 @@ def worker_thread(rows_to_process, total_rows, already_processed_count, start_ti
                 "estimated_remaining": est_remaining_sec,
                 "rate_limit_errors": rate_limit_errors,
                 "already_processed": already_processed_count,
-                # Convert deque to a list so it can be passed
                 "last_urls": list(last_processed_deque),
             }
             progress_queue.put(progress_dict)
 
+    csvfile.close()  # Done writing
     done_dict = {
         "type": "DONE",
         "updated_rows": updated_rows,
@@ -236,18 +252,14 @@ def worker_thread(rows_to_process, total_rows, already_processed_count, start_ti
 # ---------------------------------------
 # Curses-based dashboard
 # ---------------------------------------
-
 def draw_dashboard(stdscr, stats):
-    """Render a more colorful, 'htop-like' dashboard in curses."""
     stdscr.erase()  # clear screen
 
-    # Use color pairs we initialized
     title_color = curses.color_pair(1)
     highlight_color = curses.color_pair(2)
     progress_bar_color = curses.color_pair(3)
     url_color = curses.color_pair(4)
 
-    # Title line
     stdscr.addstr(0, 0, "=== Real-time Search Progress Dashboard ===", title_color | curses.A_BOLD)
 
     processed_this_run = stats.get("processed_this_run", 0)
@@ -260,14 +272,11 @@ def draw_dashboard(stdscr, stats):
     rate_errors = stats.get("rate_limit_errors", 0)
     last_urls = stats.get("last_urls", [])
 
-    # Compute progress
     progress_percent = 100.0
     if initial_active > 0:
         progress_percent = (processed_this_run / initial_active) * 100
-
     total_processed = already_processed + processed_this_run
 
-    # Some rows of data
     row = 2
     stdscr.addstr(row, 0, f"Total rows in file      : {total_rows}", highlight_color)
     row += 1
@@ -285,49 +294,36 @@ def draw_dashboard(stdscr, stats):
     row += 1
     stdscr.addstr(row, 0, f"Rate-limit errors       : {rate_errors}", highlight_color)
 
-    # A simple progress bar
     row += 2
     bar_width = 50
     filled = int(bar_width * progress_percent / 100)
     bar_str = "[" + ("#" * filled) + ("-" * (bar_width - filled)) + "]"
     stdscr.addstr(row, 0, f"Progress: {bar_str} {progress_percent:.2f}%", progress_bar_color)
 
-    # Show the last processed URLs
     row += 2
     stdscr.addstr(row, 0, "Recently Processed (up to 5):", title_color | curses.A_BOLD)
     row += 1
     for (company, url) in last_urls:
-        # If the line might be long, we can wrap or just show it
         display_str = f" • {company} => {url}"
         stdscr.addstr(row, 0, display_str, url_color)
         row += 1
 
     stdscr.refresh()
 
-def curses_dashboard(stdscr, all_rows, rows_to_process, total_rows, already_processed):
-    """
-    The main event loop for curses. We'll spawn the worker thread, then
-    keep reading updates from the queue until done or canceled.
-    """
-    # Initialize color pairs for fun
+def curses_dashboard(stdscr, all_rows, rows_to_process, total_rows, already_processed, output_file):
     curses.start_color()
-    # color_pair(1) => Title color
     curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    # color_pair(2) => highlight color
     curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    # color_pair(3) => progress bar color
     curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    # color_pair(4) => URL color
     curses.init_pair(4, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 
     curses.curs_set(0)  # hide cursor
 
     start_time = time.time()
 
-    # Start worker in a separate thread
     worker = threading.Thread(
         target=worker_thread,
-        args=(rows_to_process, total_rows, already_processed, start_time),
+        args=(rows_to_process, total_rows, already_processed, start_time, all_rows, output_file),
         daemon=True
     )
     worker.start()
@@ -354,7 +350,6 @@ def curses_dashboard(stdscr, all_rows, rows_to_process, total_rows, already_proc
         try:
             msg = progress_queue.get(timeout=0.1)
             if msg["type"] == "PROGRESS":
-                # Merge into current stats
                 current_stats.update(msg)
             elif msg["type"] == "DONE":
                 updated_rows_final = msg["updated_rows"]
@@ -370,7 +365,6 @@ def curses_dashboard(stdscr, all_rows, rows_to_process, total_rows, already_proc
         if not worker.is_alive() and updated_rows_final is None:
             break
 
-    # Final update of the screen
     draw_dashboard(stdscr, current_stats)
     worker.join(timeout=1.0)
     return updated_rows_final, current_stats
@@ -379,11 +373,9 @@ def curses_dashboard(stdscr, all_rows, rows_to_process, total_rows, already_proc
 # Signal handler for Ctrl+C
 # ---------------------------------------
 def handle_sigint(signal_number, frame):
-    """If user presses Ctrl+C, set stop_event to request a graceful shutdown."""
     stop_event.set()
 
 def final_summary(final_stats, total_rows):
-    """Print a text-based final summary after we exit curses UI."""
     elapsed = final_stats.get("elapsed", 0)
     processed_this_run = final_stats.get("processed_this_run", 0)
     initial_active = final_stats.get("initial_active", 0)
@@ -392,7 +384,7 @@ def final_summary(final_stats, total_rows):
     final_rate_errors = final_stats.get("rate_limit_errors", 0)
     already_processed_count = final_stats.get("already_processed", 0)
     progress_percent = (
-        processed_this_run / initial_active * 100 if initial_active else 100
+        (processed_this_run / initial_active) * 100 if initial_active else 100
     )
     total_processed = already_processed_count + processed_this_run
 
@@ -410,10 +402,9 @@ def final_summary(final_stats, total_rows):
 # ---------------------------------------
 # Main entry point
 # ---------------------------------------
-
 def main_curses(stdscr):
-    input_file = "all_hospitals.csv"
-    output_file = "all_hospitals_with_urls.csv"
+    input_file = "all_clinics.csv"
+    output_file = "all_clinics_with_urls.csv"
 
     with open(input_file, newline='', encoding='utf-8') as infile:
         all_rows = list(csv.DictReader(infile))
@@ -437,9 +428,15 @@ def main_curses(stdscr):
             rows_to_process.append((i, row))
 
     updated_rows, final_stats = curses_dashboard(
-        stdscr, all_rows, rows_to_process, total_rows, already_processed_count
+        stdscr, all_rows, rows_to_process, total_rows, already_processed_count, output_file
     )
 
+    # ----------------------------------------------------------------------
+    # If you do NOT want to rewrite all processed rows at the end (because
+    # you're already appending them one by one in worker_thread), comment
+    # out the block below to avoid duplicate rows in the CSV:
+    # ----------------------------------------------------------------------
+    """
     if updated_rows is not None:
         # Gather only newly processed
         fieldnames = list(all_rows[0].keys())
@@ -449,7 +446,7 @@ def main_curses(stdscr):
 
         newly_processed = []
         for i in range(total_rows):
-            if updated_rows[i] is not None:  # means we updated that row
+            if updated_rows[i] is not None:
                 newly_processed.append(updated_rows[i])
 
         if newly_processed:
@@ -460,6 +457,7 @@ def main_curses(stdscr):
                     writer.writeheader()
                 for r in newly_processed:
                     writer.writerow(r)
+    """
 
     if not final_stats:
         final_stats = {
@@ -473,11 +471,8 @@ def main_curses(stdscr):
         }
     final_summary(final_stats, total_rows)
 
-
 def main():
-    # Install the custom signal handler for Ctrl+C
     signal.signal(signal.SIGINT, handle_sigint)
-    # Wrap our curses-based function
     curses.wrapper(main_curses)
 
 if __name__ == "__main__":

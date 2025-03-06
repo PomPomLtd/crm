@@ -12,7 +12,7 @@ import json
 import datetime
 
 # Base URL for the group practices overview page
-overview_url = "https://www.onedoc.ch/de/klinik"
+overview_url = "https://www.onedoc.ch/de/medizinisches-zentrum"
 
 # Headers to make the request look like it's coming from a browser
 headers = {

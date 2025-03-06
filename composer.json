@@ -4,6 +4,7 @@
   "require": {
     "craftcms/cms": "^5.0.0",
     "craftcms/feed-me": "^6.7.0",
+    "putyourlightson/craft-dashboard-begone": "^3.0.0",
     "vlucas/phpdotenv": "^5.4.0"
   },
   "require-dev": {

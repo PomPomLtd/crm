@@ -1,4 +1,4 @@
-dateModified: 1740997918
+dateModified: 1741296492
 elementSources:
   craft\elements\Entry:
     -
@@ -40,10 +40,14 @@ elementSources:
       disabled: false
       key: 'section:2c3c9efa-9e65-4c75-8835-9398b8f7b353' # Clinics
       tableAttributes:
-        - 'fieldInstance:f70924a0-2caa-4e9b-ab1f-a421ddcfd471'
-        - 'fieldInstance:077804cf-3af0-455c-be60-95a86e009d7d'
-        - 'fieldInstance:279e9891-8e85-4aeb-a4c0-aa66466882bd'
         - 'fieldInstance:cbf09813-74fe-4152-8c43-5cdd9040a1c7'
+        - 'fieldInstance:8343e2f3-e7ee-416b-a195-c7d72b6dabbc'
+        - 'fieldInstance:f4c1d531-b9c0-4bf5-96ee-e93245fea19f'
+        - 'fieldInstance:5d4f5511-5dc9-4438-bef6-93173f0926d7'
+        - 'field:12074a27-13af-4f17-bb99-f7c6c45f0e7f' # Link / URL
+        - 'fieldInstance:a406ba75-c03c-4513-a9c4-170b2b0aba8c'
+        - 'fieldInstance:88073a01-8f63-47b3-836f-c2fa7c41696e'
+        - 'field:c2fc5bbf-79d0-4c09-a4e8-c71748f11879' # Zuweisung
         - 'field:889df0e9-d8a5-41ac-a9c5-bea7d7572523' # CRM Status
       type: native
     -
@@ -54,10 +58,14 @@ elementSources:
       disabled: false
       key: 'section:da503bc9-5d31-492d-900c-e2bb7a64bdc6' # Medical Centers
       tableAttributes:
-        - 'fieldInstance:f70924a0-2caa-4e9b-ab1f-a421ddcfd471'
-        - 'fieldInstance:077804cf-3af0-455c-be60-95a86e009d7d'
-        - 'fieldInstance:279e9891-8e85-4aeb-a4c0-aa66466882bd'
         - 'fieldInstance:cbf09813-74fe-4152-8c43-5cdd9040a1c7'
+        - 'fieldInstance:8343e2f3-e7ee-416b-a195-c7d72b6dabbc'
+        - 'fieldInstance:f4c1d531-b9c0-4bf5-96ee-e93245fea19f'
+        - 'fieldInstance:5d4f5511-5dc9-4438-bef6-93173f0926d7'
+        - 'field:12074a27-13af-4f17-bb99-f7c6c45f0e7f' # Link / URL
+        - 'fieldInstance:a406ba75-c03c-4513-a9c4-170b2b0aba8c'
+        - 'field:c2fc5bbf-79d0-4c09-a4e8-c71748f11879' # Zuweisung
+        - 'fieldInstance:88073a01-8f63-47b3-836f-c2fa7c41696e'
         - 'field:889df0e9-d8a5-41ac-a9c5-bea7d7572523' # CRM Status
       type: native
     -
@@ -68,10 +76,9 @@ elementSources:
       disabled: false
       key: 'section:60a1ba8b-645d-493d-ac68-5460fb68629f' # Group Practices / Gruppenpraxis
       tableAttributes:
-        - 'fieldInstance:f70924a0-2caa-4e9b-ab1f-a421ddcfd471'
-        - 'fieldInstance:077804cf-3af0-455c-be60-95a86e009d7d'
-        - 'fieldInstance:279e9891-8e85-4aeb-a4c0-aa66466882bd'
         - 'fieldInstance:cbf09813-74fe-4152-8c43-5cdd9040a1c7'
+        - 'fieldInstance:8343e2f3-e7ee-416b-a195-c7d72b6dabbc'
+        - 'fieldInstance:5d4f5511-5dc9-4438-bef6-93173f0926d7'
         - 'field:12074a27-13af-4f17-bb99-f7c6c45f0e7f' # Link / URL
         - 'fieldInstance:a406ba75-c03c-4513-a9c4-170b2b0aba8c'
         - 'fieldInstance:88073a01-8f63-47b3-836f-c2fa7c41696e'
@@ -86,12 +93,28 @@ elementSources:
       disabled: false
       key: 'section:0a308f24-46a3-4232-b91f-585f5d8520a8' # Medizinische Praxis
       tableAttributes:
-        - status
-        - 'fieldInstance:f70924a0-2caa-4e9b-ab1f-a421ddcfd471'
-        - 'fieldInstance:077804cf-3af0-455c-be60-95a86e009d7d'
-        - 'fieldInstance:279e9891-8e85-4aeb-a4c0-aa66466882bd'
         - 'fieldInstance:cbf09813-74fe-4152-8c43-5cdd9040a1c7'
+        - 'fieldInstance:8343e2f3-e7ee-416b-a195-c7d72b6dabbc'
         - 'fieldInstance:f4c1d531-b9c0-4bf5-96ee-e93245fea19f'
+        - 'fieldInstance:5d4f5511-5dc9-4438-bef6-93173f0926d7'
+        - 'field:12074a27-13af-4f17-bb99-f7c6c45f0e7f' # Link / URL
+        - 'fieldInstance:a406ba75-c03c-4513-a9c4-170b2b0aba8c'
+        - 'field:c2fc5bbf-79d0-4c09-a4e8-c71748f11879' # Zuweisung
+        - 'fieldInstance:88073a01-8f63-47b3-836f-c2fa7c41696e'
+        - 'field:889df0e9-d8a5-41ac-a9c5-bea7d7572523' # CRM Status
+      type: native
+    -
+      defaultSort:
+        - postDate
+        - desc
+      defaultViewMode: ''
+      disabled: false
+      key: 'section:90682f35-c686-4ef5-95b6-2979a8d511a1' # Hospitals
+      tableAttributes:
+        - 'fieldInstance:cbf09813-74fe-4152-8c43-5cdd9040a1c7'
+        - 'fieldInstance:8343e2f3-e7ee-416b-a195-c7d72b6dabbc'
+        - 'fieldInstance:f4c1d531-b9c0-4bf5-96ee-e93245fea19f'
+        - 'fieldInstance:5d4f5511-5dc9-4438-bef6-93173f0926d7'
         - 'field:12074a27-13af-4f17-bb99-f7c6c45f0e7f' # Link / URL
         - 'fieldInstance:a406ba75-c03c-4513-a9c4-170b2b0aba8c'
         - 'field:c2fc5bbf-79d0-4c09-a4e8-c71748f11879' # Zuweisung
@@ -112,6 +135,7 @@ meta:
     889df0e9-d8a5-41ac-a9c5-bea7d7572523: 'CRM Status' # CRM Status
     12074a27-13af-4f17-bb99-f7c6c45f0e7f: 'Link / URL' # Link / URL
     081924e9-6624-4e96-a202-5bd71ea7d7ce: 'ZIP Code' # ZIP Code
+    90682f35-c686-4ef5-95b6-2979a8d511a1: Hospitals # Hospitals
     05122057-522b-4eca-93d3-827592ca5f53: Profession # Profession
     73644798-b9e8-44d8-81ca-748ece161994: 'Public Schema' # Public Schema
     c2fc5bbf-79d0-4c09-a4e8-c71748f11879: Zuweisung # Zuweisung
@@ -120,6 +144,10 @@ meta:
     dc6cf8eb-22af-4b1d-8b65-efefa371adf9: 'CRM Entry' # CRM Entry
     ee6d383e-e5e6-4bf3-bf33-3ccd8d4adb8a: 'Text Field' # Text Field
 plugins:
+  dashboard-begone:
+    edition: standard
+    enabled: true
+    schemaVersion: 1.0.0
   feed-me:
     edition: standard
     enabled: true
