@@ -5,19 +5,16 @@ import os
 import sys
 import requests
 from urllib.parse import urlparse
-from duckduckgo_search import DDGS
-from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
 # Global counter for rate limit errors.
 rate_limit_errors = 0
 
-# Optimistic dynamic delay settings (in seconds)
-min_delay = 0.5
-max_delay = 5.0
-dynamic_delay = 1.0  # starting optimistic delay
-
 # Banned domains to skip.
 banned_domains = ["onedoc.ch", "comparis.ch", "doktor.ch"]
+
+# SearchAPI details
+API_KEY = "VQxddzhtWBd9ANBGbtLGd3dk"
+SEARCH_URL = "https://www.searchapi.io/api/v1/search"
 
 def format_time(seconds):
     """Format seconds into H:MM:SS string."""
@@ -29,26 +26,59 @@ def fetch_company_url(company_name, city, max_retries=3):
     """
     Build a search query using the company name and, if applicable,
     the city (if not already in the company name). Retries on rate limit errors.
+    Replaces the old DuckDuckGo search logic with SearchAPI's Google engine.
     """
     global rate_limit_errors
+
+    # Construct the search query
     query = company_name
     if city and city.lower() not in company_name.lower():
         query += f" {city}"
-    
+
     attempt = 0
     while attempt < max_retries:
         try:
-            with DDGS() as ddgs:
-                results = ddgs.text(query, max_results=1)
-                if results and len(results) > 0:
-                    return results[0].get("href", "")
-                return ""
-        except DuckDuckGoSearchException as e:
+            # Prepare query params for the new API
+            params = {
+                "engine": "google",
+                "q": query,
+                "api_key": API_KEY,
+                "num": 1  # get only the top result
+            }
+            headers = {
+                # A generic User-Agent to avoid 403 responses
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/115.0 Safari/537.36"
+                )
+            }
+            # Increased timeout to 20 seconds
+            response = requests.get(SEARCH_URL, params=params, headers=headers, timeout=20)
+            
+            # Treat a 429 or 403 as a rate-limit or block
+            if response.status_code in [429, 403]:
+                raise requests.exceptions.RequestException(
+                    f"Rate limit / Block encountered (status {response.status_code})"
+                )
+
+            # Raise an error for other unsuccessful requests
+            response.raise_for_status()
+
+            data = response.json()
+            # Extract the first organic result link, if present
+            if "organic_results" in data and len(data["organic_results"]) > 0:
+                return data["organic_results"][0].get("link", "")
+            return ""
+
+        except requests.exceptions.RequestException as e:
             rate_limit_errors += 1
             print(f"\033[93m⚠️  Error fetching URL for '{company_name}' (attempt {attempt+1}/{max_retries}): {e}\033[0m")
-            wait_time = random.uniform(5, 10) * (attempt + 1)  # shorter backoff now
+            # Shorter backoff for error retries
+            wait_time = random.uniform(5, 10) * (attempt + 1)
             time.sleep(wait_time)
             attempt += 1
+
     return ""
 
 def check_zuweisung(url):
@@ -63,7 +93,8 @@ def check_zuweisung(url):
                            'AppleWebKit/537.36 (KHTML, like Gecko) '
                            'Chrome/115.0 Safari/537.36')
         }
-        response = requests.get(url, timeout=10, headers=headers)
+        # Increased timeout here to 20 seconds as well
+        response = requests.get(url, timeout=20, headers=headers)
         if response.status_code != 200:
             return 0, []
         content = response.text
@@ -109,14 +140,12 @@ def print_final_summary(active_count, initial_active, total_rows, active_duratio
     print(f"Average time per row      : {avg_time:.2f} s")
     print(f"Estimated time remaining  : {format_time(estimated_remaining)}")
     print(f"Total elapsed time        : {format_time(elapsed)}")
-    print(f"Current dynamic delay     : {dynamic_delay:.2f} s")
     print(f"Rate limit errors         : {rate_limit_errors}")
     print("========================================\033[0m\n")
 
 def main():
-    global dynamic_delay
-    input_file = "all_hospitals.csv"      # Input CSV file
-    output_file = "all_hospitals_with_urls.csv"    # Output CSV file
+    input_file = "all_hospitals.csv"             # Input CSV file
+    output_file = "all_hospitals_with_urls.csv"  # Output CSV file
     
     # Load all rows to determine total count.
     with open(input_file, newline='', encoding='utf-8') as infile:
@@ -140,12 +169,12 @@ def main():
     print("===============================")
     print(f"Total elements in file    : {total_rows}")
     print(f"Already processed         : {len(processed_names)}")
-    print(f"To process this run        : {initial_active}")
+    print(f"To process this run       : {initial_active}")
     print("===============================\033[0m\n")
     
     start_time = time.time()
     active_count = 0          # Count of rows processed this run (active rows)
-    active_durations = []     # List to store total time for each active row (including delays)
+    active_durations = []     # List to store total time for each active row
     
     try:
         # Open the output file in append mode.
@@ -170,7 +199,7 @@ def main():
                 if company_name in processed_names:
                     continue
                 
-                # Start timing for this row (active processing).
+                # Start timing for this row
                 row_start = time.time()
                 
                 city = row.get("city", "").strip()
@@ -201,40 +230,27 @@ def main():
                 writer.writerow(row)
                 processed_names.add(company_name)
                 active_count += 1
-
-                # Adjust dynamic delay based on error ratio.
-                error_ratio = rate_limit_errors / active_count if active_count > 0 else 0
-                if error_ratio < 0.1:
-                    dynamic_delay = max(min_delay, dynamic_delay - 0.3)
-                elif error_ratio > 0.15:
-                    dynamic_delay = min(max_delay, dynamic_delay + 0.3)
                 
-                # Final sleep for this row.
-                delay = random.uniform(dynamic_delay * 0.8, dynamic_delay * 1.2)
-                print(f"\033[93m⏳ Waiting for {delay:.2f}s...\033[0m")
-                time.sleep(delay)
-                
-                # Measure the full time taken for this active row (processing + sleep).
+                # Measure the time taken to process this row.
                 row_duration = time.time() - row_start
                 active_durations.append(row_duration)
                 
-                # Calculate progress statistics.
+                # Calculate and print progress statistics.
                 elapsed = time.time() - start_time
                 avg_time = sum(active_durations) / len(active_durations)
                 remaining_active = initial_active - active_count
                 estimated_remaining = avg_time * remaining_active
                 progress_percent = (active_count / initial_active) * 100 if initial_active else 100
                 
-                # Print a multi-line progress block.
                 print("\033[96m----------------------------------------")
                 print(f"Processed this run        : {active_count} / {initial_active}")
                 print(f"Total in file             : {total_rows}")
                 print(f"Avg time per row          : {avg_time:.2f} s")
                 print(f"Estimated time remaining  : {format_time(estimated_remaining)}")
                 print(f"Elapsed time              : {format_time(elapsed)}")
-                print(f"Current delay             : {dynamic_delay:.2f} s")
                 print(f"Rate limit errors         : {rate_limit_errors}")
                 print("----------------------------------------\033[0m\n")
+
     except KeyboardInterrupt:
         print("\n\033[93m✋ Ctrl+C pressed. Stopping gracefully...\033[0m")
         print_final_summary(active_count, initial_active, total_rows, active_durations, start_time)
