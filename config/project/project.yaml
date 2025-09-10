@@ -1,4 +1,4 @@
-dateModified: 1741296492
+dateModified: 1757491548
 elementSources:
   craft\elements\Entry:
     -
@@ -144,6 +144,10 @@ meta:
     dc6cf8eb-22af-4b1d-8b65-efefa371adf9: 'CRM Entry' # CRM Entry
     ee6d383e-e5e6-4bf3-bf33-3ccd8d4adb8a: 'Text Field' # Text Field
 plugins:
+  _meditransfer-mailer:
+    edition: standard
+    enabled: true
+    schemaVersion: 1.0.0
   dashboard-begone:
     edition: standard
     enabled: true
@@ -157,7 +161,7 @@ system:
   live: true
   name: CRM
   retryDuration: null
-  schemaVersion: 5.6.0.2
+  schemaVersion: 5.8.0.3
   timeZone: Europe/Zurich
 users:
   allowPublicRegistration: false

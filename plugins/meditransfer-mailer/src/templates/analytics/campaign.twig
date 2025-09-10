@@ -1,0 +1,239 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'Analysen - ' ~ campaign.name %}
+
+{% set crumbs = [
+    { label: 'Analysen'|t('_meditransfer-mailer'), url: url('_meditransfer-mailer/analytics') }
+] %}
+
+{% block actionButton %}
+<div class="btngroup">
+    <a href="{{ url('_meditransfer-mailer/analytics/' ~ campaign.id ~ '/export') }}" class="btn">{{ 'Exportieren'|t('_meditransfer-mailer') }}</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="meta">
+    <div class="data">
+        <h5 class="heading">{{ 'Kampagnen-Statistiken'|t('_meditransfer-mailer') }}</h5>
+        
+        <div class="value">
+            <div class="flex">
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Status'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {% set statusClass = campaign.status == 'completed' ? 'green' : (campaign.status == 'sending' ? 'orange' : (campaign.status == 'failed' ? 'red' : '')) %}
+                            <span class="status {{ statusClass }}"></span>
+                            {{ campaign.getStatusLabel() }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Empfänger'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ stats.totalRecipients }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Versendet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ stats.sentCount }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geöffnet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ stats.openedCount }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geklickt'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ stats.clickedCount }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Bounced'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ stats.bouncedCount }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="flex">
+    <div class="flex-grow">
+        <div class="meta">
+            <div class="data">
+                <h5 class="heading">{{ 'Öffnungsrate'|t('_meditransfer-mailer') }}</h5>
+                <div class="value">
+                    {% set openRate = stats.openRate %}
+                    {% set rateClass = openRate >= 20 ? 'green' : (openRate >= 10 ? 'orange' : 'red') %}
+                    <span class="status {{ rateClass }}"></span>
+                    {{ openRate }}%
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex-grow">
+        <div class="meta">
+            <div class="data">
+                <h5 class="heading">{{ 'Klickrate'|t('_meditransfer-mailer') }}</h5>
+                <div class="value">
+                    {% set clickRate = stats.clickRate %}
+                    {% set rateClass = clickRate >= 3 ? 'green' : (clickRate >= 1 ? 'orange' : 'red') %}
+                    <span class="status {{ rateClass }}"></span>
+                    {{ clickRate }}%
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex-grow">
+        <div class="meta">
+            <div class="data">
+                <h5 class="heading">{{ 'Bounce-Rate'|t('_meditransfer-mailer') }}</h5>
+                <div class="value">
+                    {% set bounceRate = stats.bounceRate %}
+                    {% set rateClass = bounceRate <= 2 ? 'green' : (bounceRate <= 5 ? 'orange' : 'red') %}
+                    <span class="status {{ rateClass }}"></span>
+                    {{ bounceRate }}%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+{% if clicksByUrl|length %}
+    <h2>{{ 'Geklickte Links'|t('_meditransfer-mailer') }}</h2>
+    
+    <div class="tableview">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'URL'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Klicks'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Prozent'|t('_meditransfer-mailer') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set totalClicks = stats.clickedCount %}
+                {% for click in clicksByUrl %}
+                    <tr>
+                        <td>
+                            <a href="{{ click.url }}" target="_blank" rel="noopener">
+                                {{ click.url|length > 80 ? click.url|slice(0, 80) ~ '...' : click.url }}
+                            </a>
+                        </td>
+                        <td>{{ click.clicks }}</td>
+                        <td>
+                            {% if totalClicks > 0 %}
+                                {{ ((click.clicks / totalClicks) * 100)|round(1) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <hr>
+{% endif %}
+
+<h2>{{ 'Aktivitäts-Timeline'|t('_meditransfer-mailer') }}</h2>
+
+{% if timeline|length %}
+    <div class="tableview">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Zeit'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Event'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Empfänger'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Details'|t('_meditransfer-mailer') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in timeline %}
+                    <tr>
+                        <td>{{ event.timestamp|datetime('short') }}</td>
+                        <td>
+                            {% set eventClass = '' %}
+                            {% if event.event == 'Open' %}
+                                {% set eventClass = 'blue' %}
+                            {% elseif event.event == 'Click' %}
+                                {% set eventClass = 'green' %}
+                            {% elseif event.event == 'Bounce' %}
+                                {% set eventClass = 'red' %}
+                            {% elseif event.event == 'Delivery' %}
+                                {% set eventClass = 'green' %}
+                            {% endif %}
+                            
+                            <span class="status {{ eventClass }}"></span>
+                            {{ event.event }}
+                        </td>
+                        <td>
+                            {{ event.recipientName ?: event.recipientEmail }}
+                            {% if event.recipientName %}
+                                <br><span class="light">{{ event.recipientEmail }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if event.event == 'Click' and event.clickedUrl %}
+                                <a href="{{ event.clickedUrl }}" target="_blank" rel="noopener" class="light">
+                                    {{ event.clickedUrl|length > 50 ? event.clickedUrl|slice(0, 50) ~ '...' : event.clickedUrl }}
+                                </a>
+                            {% elseif event.eventData.Description %}
+                                <span class="light">{{ event.eventData.Description }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="zilch">
+        <p>{{ 'Noch keine Aktivitäten aufgezeichnet.'|t('_meditransfer-mailer') }}</p>
+    </div>
+{% endif %}
+
+{% endblock %}

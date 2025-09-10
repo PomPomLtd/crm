@@ -1,0 +1,116 @@
+{# @var plugin \pompom\craftmeditransfermailer\MediTransferMailer #}
+{# @var settings \pompom\craftmeditransfermailer\models\Settings #}
+
+{% import '_includes/forms.twig' as forms %}
+
+<h2>Postmark Einstellungen</h2>
+
+{{ forms.autosuggestField({
+    label: 'Postmark Server API Token'|t('_meditransfer-mailer'),
+    instructions: 'Der Server API Token von Ihrem Postmark Account'|t('_meditransfer-mailer'),
+    id: 'postmarkServerToken',
+    name: 'postmarkServerToken',
+    value: settings.postmarkServerToken,
+    suggestEnvVars: true,
+    required: true,
+    errors: settings.getErrors('postmarkServerToken')
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Postmark Account API Token'|t('_meditransfer-mailer'),
+    instructions: 'Der Account API Token für administrative Funktionen (optional)'|t('_meditransfer-mailer'),
+    id: 'postmarkApiToken',
+    name: 'postmarkApiToken',
+    value: settings.postmarkApiToken,
+    suggestEnvVars: true,
+    errors: settings.getErrors('postmarkApiToken')
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Webhook Secret'|t('_meditransfer-mailer'),
+    instructions: 'Geheimer Schlüssel zur Validierung von Postmark Webhooks (optional)'|t('_meditransfer-mailer'),
+    id: 'webhookSecret',
+    name: 'webhookSecret',
+    value: settings.webhookSecret,
+    suggestEnvVars: true,
+    errors: settings.getErrors('webhookSecret')
+}) }}
+
+<hr>
+
+<h2>E-Mail Einstellungen</h2>
+
+{{ forms.autosuggestField({
+    label: 'Absender E-Mail'|t('_meditransfer-mailer'),
+    instructions: 'Die E-Mail-Adresse, von der die E-Mails versendet werden'|t('_meditransfer-mailer'),
+    id: 'fromEmail',
+    name: 'fromEmail',
+    value: settings.fromEmail,
+    suggestEnvVars: true,
+    required: true,
+    errors: settings.getErrors('fromEmail')
+}) }}
+
+{{ forms.textField({
+    label: 'Absender Name'|t('_meditransfer-mailer'),
+    instructions: 'Der Name, der als Absender angezeigt wird'|t('_meditransfer-mailer'),
+    id: 'fromName',
+    name: 'fromName',
+    value: settings.fromName,
+    errors: settings.getErrors('fromName')
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Antwort E-Mail'|t('_meditransfer-mailer'),
+    instructions: 'Die E-Mail-Adresse für Antworten (optional)'|t('_meditransfer-mailer'),
+    id: 'replyToEmail',
+    name: 'replyToEmail',
+    value: settings.replyToEmail,
+    suggestEnvVars: true,
+    errors: settings.getErrors('replyToEmail')
+}) }}
+
+<hr>
+
+<h2>Versand Einstellungen</h2>
+
+{{ forms.textField({
+    label: 'Batch-Größe'|t('_meditransfer-mailer'),
+    instructions: 'Anzahl der E-Mails pro Batch (10-500)'|t('_meditransfer-mailer'),
+    id: 'batchSize',
+    name: 'batchSize',
+    value: settings.batchSize,
+    type: 'number',
+    min: 10,
+    max: 500,
+    errors: settings.getErrors('batchSize')
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Tracking aktivieren'|t('_meditransfer-mailer'),
+    instructions: 'E-Mail Öffnungen und Klicks verfolgen'|t('_meditransfer-mailer'),
+    id: 'enableTracking',
+    name: 'enableTracking',
+    on: settings.enableTracking,
+    errors: settings.getErrors('enableTracking')
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Test-Modus'|t('_meditransfer-mailer'),
+    instructions: 'E-Mails werden nicht wirklich versendet (nur für Entwicklung)'|t('_meditransfer-mailer'),
+    id: 'testMode',
+    name: 'testMode',
+    on: settings.testMode,
+    warning: settings.testMode ? 'Test-Modus ist aktiviert! E-Mails werden nicht versendet.',
+    errors: settings.getErrors('testMode')
+}) }}
+
+<hr>
+
+<div class="readable">
+    <blockquote class="note">
+        <p><strong>Webhook URL für Postmark:</strong></p>
+        <p><code>{{ siteUrl('_meditransfer-mailer/webhooks/postmark') }}</code></p>
+        <p>Fügen Sie diese URL in Ihren Postmark Server Webhook-Einstellungen für folgende Events hinzu: Delivery, Open, Click, Bounce, SpamComplaint</p>
+    </blockquote>
+</div>

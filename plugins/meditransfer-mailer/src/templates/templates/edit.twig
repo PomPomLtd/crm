@@ -1,0 +1,165 @@
+{% extends '_layouts/cp' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = isNew ? 'Neue Vorlage'|t('_meditransfer-mailer') : template.name %}
+
+{% set crumbs = [
+    { label: 'Vorlagen'|t('_meditransfer-mailer'), url: url('_meditransfer-mailer/templates') }
+] %}
+
+{% if not isNew %}
+    {% set crumbs = crumbs|merge([{ label: template.name }]) %}
+{% endif %}
+
+{% block actionButton %}
+    <div class="btngroup">
+        <input type="submit" class="btn submit" value="{{ 'Speichern'|t('_meditransfer-mailer') }}">
+        
+        {% if not isNew %}
+            <div class="btn menubtn"></div>
+            <div class="menu">
+                <ul>
+                    <li><a href="{{ url('_meditransfer-mailer/templates/' ~ template.id ~ '/preview') }}" target="_blank">{{ 'Vorschau'|t('_meditransfer-mailer') }}</a></li>
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+
+<form method="post" action="" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('_meditransfer-mailer/templates/save') }}
+    {% if not isNew %}
+        {{ hiddenInput('templateId', template.id) }}
+    {% endif %}
+    
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Vorlagen-Name'|t('_meditransfer-mailer'),
+            instructions: 'Interner Name für diese Vorlage'|t('_meditransfer-mailer'),
+            id: 'name',
+            name: 'name',
+            value: template.name,
+            required: true,
+            first: true,
+            errors: template.getErrors('name')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'Handle'|t('_meditransfer-mailer'),
+            instructions: 'Eindeutiger Bezeichner für diese Vorlage (a-z, 0-9, _)'|t('_meditransfer-mailer'),
+            id: 'handle',
+            name: 'handle',
+            value: template.handle,
+            required: true,
+            errors: template.getErrors('handle')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'E-Mail Betreff'|t('_meditransfer-mailer'),
+            instructions: 'Der Standard-Betreff für E-Mails mit dieser Vorlage'|t('_meditransfer-mailer'),
+            id: 'subject',
+            name: 'subject',
+            value: template.subject,
+            required: true,
+            errors: template.getErrors('subject')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'Preheader Text'|t('_meditransfer-mailer'),
+            instructions: 'Kurzer Text der in E-Mail-Clients als Vorschau angezeigt wird'|t('_meditransfer-mailer'),
+            id: 'preheaderText',
+            name: 'preheaderText',
+            value: template.preheaderText,
+            errors: template.getErrors('preheaderText')
+        }) }}
+        
+        <hr>
+        
+        {{ forms.textareaField({
+            label: 'HTML Inhalt'|t('_meditransfer-mailer'),
+            instructions: 'Der HTML-Code der E-Mail. Verwenden Sie {{variableName}} für Platzhalter'|t('_meditransfer-mailer'),
+            id: 'htmlContent',
+            name: 'htmlContent',
+            value: template.htmlContent,
+            rows: 20,
+            class: 'code',
+            errors: template.getErrors('htmlContent')
+        }) }}
+        
+        {{ forms.textareaField({
+            label: 'Text Inhalt'|t('_meditransfer-mailer'),
+            instructions: 'Nur-Text Version der E-Mail für E-Mail-Clients die kein HTML unterstützen'|t('_meditransfer-mailer'),
+            id: 'textContent',
+            name: 'textContent',
+            value: template.textContent,
+            rows: 10,
+            errors: template.getErrors('textContent')
+        }) }}
+        
+        <hr>
+        
+        <div class="field">
+            <div class="heading">
+                <label>{{ 'Verfügbare Variablen'|t('_meditransfer-mailer') }}</label>
+                <div class="instructions">
+                    <p>{{ 'Diese Variablen können in Ihren E-Mail-Inhalten verwendet werden:'|t('_meditransfer-mailer') }}</p>
+                </div>
+            </div>
+            <div class="input">
+                <div class="readable">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>{{ 'Variable'|t('_meditransfer-mailer') }}</th>
+                                <th>{{ 'Beschreibung'|t('_meditransfer-mailer') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for variable, description in template.getAvailableVariables() %}
+                                <tr>
+                                    <td><code>{{ '{{' ~ variable ~ '}}' }}</code></td>
+                                    <td>{{ description }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        {{ forms.lightswitchField({
+            label: 'Vorlage aktivieren'|t('_meditransfer-mailer'),
+            instructions: 'Nur aktive Vorlagen können für Kampagnen verwendet werden'|t('_meditransfer-mailer'),
+            id: 'isActive',
+            name: 'isActive',
+            on: template.isActive,
+            errors: template.getErrors('isActive')
+        }) }}
+    </div>
+</form>
+
+{% endblock %}
+
+{% js %}
+// Auto-generate handle from name
+$('#name').on('input', function() {
+    if ($('#handle').val() === '' || $('#handle').data('auto-generated')) {
+        var handle = $(this).val()
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '');
+        
+        $('#handle').val(handle).data('auto-generated', true);
+    }
+});
+
+$('#handle').on('input', function() {
+    $(this).removeData('auto-generated');
+});
+{% endjs %}

@@ -1,0 +1,254 @@
+{% extends '_layouts/cp' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = isNew ? 'Neue Kampagne'|t('_meditransfer-mailer') : campaign.name %}
+
+{% set crumbs = [
+    { label: 'Kampagnen'|t('_meditransfer-mailer'), url: url('_meditransfer-mailer/campaigns') }
+] %}
+
+{% if not isNew %}
+    {% set crumbs = crumbs|merge([{ label: campaign.name }]) %}
+{% endif %}
+
+{% block actionButton %}
+    <div class="btngroup">
+        <input type="submit" class="btn submit" value="{{ 'Speichern'|t('_meditransfer-mailer') }}">
+        
+        {% if not isNew and campaign.canSend() %}
+            <div class="btn menubtn"></div>
+            <div class="menu">
+                <ul>
+                    <li><a href="{{ url('_meditransfer-mailer/campaigns/' ~ campaign.id ~ '/recipients') }}">{{ 'Empfänger verwalten'|t('_meditransfer-mailer') }}</a></li>
+                    <li><a href="#" class="send-campaign" data-id="{{ campaign.id }}">{{ 'Jetzt senden'|t('_meditransfer-mailer') }}</a></li>
+                    <li><a href="#" class="schedule-campaign" data-id="{{ campaign.id }}">{{ 'Planen'|t('_meditransfer-mailer') }}</a></li>
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+
+<form method="post" action="" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('_meditransfer-mailer/campaigns/save') }}
+    {% if not isNew %}
+        {{ hiddenInput('campaignId', campaign.id) }}
+    {% endif %}
+    
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Kampagnenname'|t('_meditransfer-mailer'),
+            instructions: 'Interner Name für diese Kampagne'|t('_meditransfer-mailer'),
+            id: 'name',
+            name: 'name',
+            value: campaign.name,
+            required: true,
+            first: true,
+            errors: campaign.getErrors('name')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'E-Mail Betreff'|t('_meditransfer-mailer'),
+            instructions: 'Der Betreff der E-Mail'|t('_meditransfer-mailer'),
+            id: 'subject',
+            name: 'subject',
+            value: campaign.subject,
+            required: true,
+            errors: campaign.getErrors('subject')
+        }) }}
+        
+        {{ forms.selectField({
+            label: 'E-Mail Vorlage'|t('_meditransfer-mailer'),
+            instructions: 'Wählen Sie eine Vorlage für diese Kampagne'|t('_meditransfer-mailer'),
+            id: 'templateId',
+            name: 'templateId',
+            options: templateOptions,
+            value: campaign.templateId,
+            errors: campaign.getErrors('templateId')
+        }) }}
+        
+        <hr>
+        
+        <h2>{{ 'Absender Einstellungen'|t('_meditransfer-mailer') }}</h2>
+        <p class="light">{{ 'Leer lassen, um die Plugin-Einstellungen zu verwenden'|t('_meditransfer-mailer') }}</p>
+        
+        {{ forms.textField({
+            label: 'Absender E-Mail'|t('_meditransfer-mailer'),
+            id: 'fromEmail',
+            name: 'fromEmail',
+            value: campaign.fromEmail,
+            errors: campaign.getErrors('fromEmail')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'Absender Name'|t('_meditransfer-mailer'),
+            id: 'fromName',
+            name: 'fromName',
+            value: campaign.fromName,
+            errors: campaign.getErrors('fromName')
+        }) }}
+        
+        {{ forms.textField({
+            label: 'Antwort E-Mail'|t('_meditransfer-mailer'),
+            id: 'replyToEmail',
+            name: 'replyToEmail',
+            value: campaign.replyToEmail,
+            errors: campaign.getErrors('replyToEmail')
+        }) }}
+    </div>
+    
+    {% if not isNew %}
+        <hr>
+        
+        <div class="meta">
+            <div class="data">
+                <h5 class="heading">{{ 'Statistiken'|t('_meditransfer-mailer') }}</h5>
+                
+                <div class="value">
+                    <div class="flex">
+                        <div class="flex-grow">
+                            <div class="field">
+                                <div class="heading">
+                                    <label>{{ 'Status'|t('_meditransfer-mailer') }}</label>
+                                </div>
+                                <div class="input">
+                                    {% set statusClass = campaign.status == 'completed' ? 'green' : (campaign.status == 'sending' ? 'orange' : (campaign.status == 'failed' ? 'red' : '')) %}
+                                    <span class="status {{ statusClass }}"></span>
+                                    {{ campaign.getStatusLabel() }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow">
+                            <div class="field">
+                                <div class="heading">
+                                    <label>{{ 'Empfänger'|t('_meditransfer-mailer') }}</label>
+                                </div>
+                                <div class="input">
+                                    {{ campaign.totalRecipients }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow">
+                            <div class="field">
+                                <div class="heading">
+                                    <label>{{ 'Versendet'|t('_meditransfer-mailer') }}</label>
+                                </div>
+                                <div class="input">
+                                    {{ campaign.sentCount }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if campaign.sentCount > 0 %}
+                            <div class="flex-grow">
+                                <div class="field">
+                                    <div class="heading">
+                                        <label>{{ 'Öffnungsrate'|t('_meditransfer-mailer') }}</label>
+                                    </div>
+                                    <div class="input">
+                                        {{ campaign.getOpenRate() }}%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-grow">
+                                <div class="field">
+                                    <div class="heading">
+                                        <label>{{ 'Klickrate'|t('_meditransfer-mailer') }}</label>
+                                    </div>
+                                    <div class="input">
+                                        {{ campaign.getClickRate() }}%
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</form>
+
+{% if not isNew %}
+    <!-- Schedule Modal -->
+    <div id="schedule-modal" class="modal" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h1>{{ 'Kampagne planen'|t('_meditransfer-mailer') }}</h1>
+                <button type="button" class="btn modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="schedule-form">
+                    {{ forms.dateTimeField({
+                        label: 'Versanddatum'|t('_meditransfer-mailer'),
+                        instructions: 'Wann soll die Kampagne versendet werden?'|t('_meditransfer-mailer'),
+                        id: 'scheduledDate',
+                        name: 'scheduledDate',
+                        value: campaign.scheduledDate
+                    }) }}
+                    
+                    <div class="buttons">
+                        <button type="submit" class="btn submit">{{ 'Planen'|t('_meditransfer-mailer') }}</button>
+                        <button type="button" class="btn modal-close">{{ 'Abbrechen'|t('_meditransfer-mailer') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% js %}
+{% if not isNew %}
+// Send campaign
+$('.send-campaign').on('click', function(e) {
+    e.preventDefault();
+    var campaignId = $(this).data('id');
+    
+    if (confirm('Kampagne jetzt senden?')) {
+        Craft.postActionRequest('_meditransfer-mailer/campaigns/send', {campaignId: campaignId}, function(response) {
+            if (response.success) {
+                Craft.cp.displayNotice(response.message);
+                location.reload();
+            } else {
+                Craft.cp.displayError(response.message);
+            }
+        });
+    }
+});
+
+// Schedule campaign
+$('.schedule-campaign').on('click', function(e) {
+    e.preventDefault();
+    $('#schedule-modal').show();
+});
+
+$('.modal-close').on('click', function() {
+    $('#schedule-modal').hide();
+});
+
+$('#schedule-form').on('submit', function(e) {
+    e.preventDefault();
+    var campaignId = {{ campaign.id }};
+    var scheduledDate = $('#scheduledDate').val();
+    
+    Craft.postActionRequest('_meditransfer-mailer/campaigns/schedule', {
+        campaignId: campaignId,
+        scheduledDate: scheduledDate
+    }, function(response) {
+        if (response.success) {
+            Craft.cp.displayNotice(response.message);
+            $('#schedule-modal').hide();
+            location.reload();
+        } else {
+            Craft.cp.displayError(response.message);
+        }
+    });
+});
+{% endif %}
+{% endjs %}

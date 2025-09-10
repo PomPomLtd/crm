@@ -1,0 +1,146 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'Kampagnen'|t('_meditransfer-mailer') %}
+
+{% block actionButton %}
+<div class="btngroup">
+    <a href="{{ url('_meditransfer-mailer/campaigns/new') }}" class="btn submit add icon">{{ 'Neue Kampagne'|t('_meditransfer-mailer') }}</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div id="campaigns" class="elementindex">
+    {% if campaigns|length %}
+        <div class="tableview">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'Name'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Betreff'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Status'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Empfänger'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Gesendet'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Öffnungsrate'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Klickrate'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Erstellt'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col" class="thin"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for campaign in campaigns %}
+                        <tr data-id="{{ campaign.id }}">
+                            <td>
+                                <a href="{{ url('_meditransfer-mailer/campaigns/' ~ campaign.id) }}" class="cell-bold">
+                                    {{ campaign.name }}
+                                </a>
+                            </td>
+                            <td>{{ campaign.subject }}</td>
+                            <td>
+                                {% set statusClass = campaign.status == 'completed' ? 'green' : (campaign.status == 'sending' ? 'orange' : (campaign.status == 'failed' ? 'red' : '')) %}
+                                <span class="status {{ statusClass }}"></span>
+                                {{ campaign.getStatusLabel() }}
+                            </td>
+                            <td>{{ campaign.totalRecipients }}</td>
+                            <td>{{ campaign.sentCount }}</td>
+                            <td>
+                                {% if campaign.sentCount > 0 %}
+                                    {{ campaign.getOpenRate() }}%
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if campaign.sentCount > 0 %}
+                                    {{ campaign.getClickRate() }}%
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ campaign.dateCreated|datetime('short') }}</td>
+                            <td class="thin">
+                                <div class="btngroup">
+                                    <div class="btn menubtn" data-icon="settings"></div>
+                                    <div class="menu">
+                                        <ul>
+                                            <li><a href="{{ url('_meditransfer-mailer/campaigns/' ~ campaign.id) }}">{{ 'Bearbeiten'|t('_meditransfer-mailer') }}</a></li>
+                                            <li><a href="{{ url('_meditransfer-mailer/campaigns/' ~ campaign.id ~ '/recipients') }}">{{ 'Empfänger'|t('_meditransfer-mailer') }}</a></li>
+                                            <li><a href="{{ url('_meditransfer-mailer/analytics/' ~ campaign.id) }}">{{ 'Statistiken'|t('_meditransfer-mailer') }}</a></li>
+                                            {% if campaign.canSend() %}
+                                                <li><a href="#" class="send-campaign" data-id="{{ campaign.id }}">{{ 'Senden'|t('_meditransfer-mailer') }}</a></li>
+                                            {% endif %}
+                                            {% if campaign.canCancel() %}
+                                                <li><a href="#" class="cancel-campaign" data-id="{{ campaign.id }}">{{ 'Abbrechen'|t('_meditransfer-mailer') }}</a></li>
+                                            {% endif %}
+                                            {% if campaign.canDelete() %}
+                                                <li><a href="#" class="delete-campaign error" data-id="{{ campaign.id }}">{{ 'Löschen'|t('_meditransfer-mailer') }}</a></li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'Noch keine Kampagnen vorhanden.'|t('_meditransfer-mailer') }}</p>
+            <p><a href="{{ url('_meditransfer-mailer/campaigns/new') }}" class="btn submit add">{{ 'Erste Kampagne erstellen'|t('_meditransfer-mailer') }}</a></p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% js %}
+// Handle campaign actions
+$('.send-campaign').on('click', function(e) {
+    e.preventDefault();
+    var campaignId = $(this).data('id');
+    
+    if (confirm('Kampagne jetzt senden?')) {
+        Craft.postActionRequest('_meditransfer-mailer/campaigns/send', {campaignId: campaignId}, function(response) {
+            if (response.success) {
+                Craft.cp.displayNotice(response.message);
+                location.reload();
+            } else {
+                Craft.cp.displayError(response.message);
+            }
+        });
+    }
+});
+
+$('.cancel-campaign').on('click', function(e) {
+    e.preventDefault();
+    var campaignId = $(this).data('id');
+    
+    if (confirm('Kampagne abbrechen?')) {
+        Craft.postActionRequest('_meditransfer-mailer/campaigns/cancel', {campaignId: campaignId}, function(response) {
+            if (response.success) {
+                Craft.cp.displayNotice(response.message);
+                location.reload();
+            } else {
+                Craft.cp.displayError(response.message);
+            }
+        });
+    }
+});
+
+$('.delete-campaign').on('click', function(e) {
+    e.preventDefault();
+    var campaignId = $(this).data('id');
+    
+    if (confirm('Kampagne wirklich löschen?')) {
+        Craft.postActionRequest('_meditransfer-mailer/campaigns/delete', {campaignId: campaignId}, function(response) {
+            if (response.success) {
+                Craft.cp.displayNotice('Kampagne gelöscht');
+                location.reload();
+            } else {
+                Craft.cp.displayError(response.message);
+            }
+        });
+    }
+});
+{% endjs %}

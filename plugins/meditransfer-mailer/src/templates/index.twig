@@ -1,0 +1,58 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'MediTransfer Mailer' %}
+
+{% block content %}
+
+<div class="readable">
+    <h1>{{ 'Willkommen bei MediTransfer Mailer'|t('_meditransfer-mailer') }}</h1>
+    
+    <p>{{ 'Verwalten Sie Ihre E-Mail-Kampagnen für die Bewerbung von MediTransfer Patiententransfer-Services.'|t('_meditransfer-mailer') }}</p>
+    
+    <div class="grid">
+        <div class="item" data-colspan="1">
+            <div class="meta">
+                <h2>{{ 'Kampagnen'|t('_meditransfer-mailer') }}</h2>
+                <p>{{ 'Erstellen und verwalten Sie E-Mail-Kampagnen'|t('_meditransfer-mailer') }}</p>
+                <a href="{{ url('_meditransfer-mailer/campaigns') }}" class="btn submit">{{ 'Kampagnen verwalten'|t('_meditransfer-mailer') }}</a>
+            </div>
+        </div>
+        
+        <div class="item" data-colspan="1">
+            <div class="meta">
+                <h2>{{ 'Vorlagen'|t('_meditransfer-mailer') }}</h2>
+                <p>{{ 'E-Mail-Vorlagen erstellen und bearbeiten'|t('_meditransfer-mailer') }}</p>
+                <a href="{{ url('_meditransfer-mailer/templates') }}" class="btn">{{ 'Vorlagen verwalten'|t('_meditransfer-mailer') }}</a>
+            </div>
+        </div>
+        
+        <div class="item" data-colspan="1">
+            <div class="meta">
+                <h2>{{ 'Analysen'|t('_meditransfer-mailer') }}</h2>
+                <p>{{ 'Kampagnen-Performance und Statistiken'|t('_meditransfer-mailer') }}</p>
+                <a href="{{ url('_meditransfer-mailer/analytics') }}" class="btn">{{ 'Statistiken ansehen'|t('_meditransfer-mailer') }}</a>
+            </div>
+        </div>
+    </div>
+    
+    <hr>
+    
+    <h2>{{ 'Schnellstart'|t('_meditransfer-mailer') }}</h2>
+    
+    <ol>
+        <li><strong>{{ 'Einstellungen konfigurieren'|t('_meditransfer-mailer') }}</strong><br>
+            <a href="{{ url('settings/plugins/_meditransfer-mailer') }}">{{ 'Postmark API Token und Absender-Einstellungen konfigurieren'|t('_meditransfer-mailer') }}</a>
+        </li>
+        <li><strong>{{ 'Erste Kampagne erstellen'|t('_meditransfer-mailer') }}</strong><br>
+            <a href="{{ url('_meditransfer-mailer/campaigns/new') }}">{{ 'Neue Kampagne mit der Standard-Vorlage erstellen'|t('_meditransfer-mailer') }}</a>
+        </li>
+        <li><strong>{{ 'Empfänger hinzufügen'|t('_meditransfer-mailer') }}</strong><br>
+            {{ 'Wählen Sie Empfänger aus Ihren Craft-Einträgen aus'|t('_meditransfer-mailer') }}
+        </li>
+        <li><strong>{{ 'Testen und senden'|t('_meditransfer-mailer') }}</strong><br>
+            {{ 'Senden Sie zunächst eine Test-E-Mail, bevor Sie die gesamte Kampagne versenden'|t('_meditransfer-mailer') }}
+        </li>
+    </ol>
+</div>
+
+{% endblock %}

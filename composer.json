@@ -4,6 +4,7 @@
   "require": {
     "craftcms/cms": "^5.0.0",
     "craftcms/feed-me": "^6.7.0",
+    "pom-pom/craft-meditransfer-mailer": "dev-main",
     "putyourlightson/craft-dashboard-begone": "^3.0.0",
     "vlucas/phpdotenv": "^5.4.0"
   },
@@ -26,5 +27,11 @@
     "post-root-package-install": [
       "@php -r \"file_exists('.env') || copy('.env.example.dev', '.env');\""
     ]
-  }
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "plugins/meditransfer-mailer"
+    }
+  ]
 }

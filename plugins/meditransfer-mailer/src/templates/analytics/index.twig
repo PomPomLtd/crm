@@ -1,0 +1,168 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'Analysen'|t('_meditransfer-mailer') %}
+
+{% block content %}
+
+<div class="meta">
+    <div class="data">
+        <h5 class="heading">{{ 'Gesamtstatistiken'|t('_meditransfer-mailer') }}</h5>
+        
+        <div class="value">
+            <div class="flex">
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Kampagnen'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.totalCampaigns }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Gesamte Empfänger'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.totalRecipients }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Versendet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.totalSent }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geöffnet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.totalOpened }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geklickt'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.totalClicked }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Öffnungsrate'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.overallOpenRate }}%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Klickrate'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ overallStats.overallClickRate }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<h2>{{ 'Kampagnen-Performance'|t('_meditransfer-mailer') }}</h2>
+
+{% if campaigns|length %}
+    <div class="tableview">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Kampagne'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Status'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Empfänger'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Versendet'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Geöffnet'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Geklickt'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Öffnungsrate'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Klickrate'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col">{{ 'Erstellt'|t('_meditransfer-mailer') }}</th>
+                    <th scope="col" class="thin"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for campaign in campaigns %}
+                    <tr>
+                        <td>
+                            <a href="{{ url('_meditransfer-mailer/analytics/' ~ campaign.id) }}" class="cell-bold">
+                                {{ campaign.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% set statusClass = campaign.status == 'completed' ? 'green' : (campaign.status == 'sending' ? 'orange' : (campaign.status == 'failed' ? 'red' : '')) %}
+                            <span class="status {{ statusClass }}"></span>
+                            {{ campaign.getStatusLabel() }}
+                        </td>
+                        <td>{{ campaign.totalRecipients }}</td>
+                        <td>{{ campaign.sentCount }}</td>
+                        <td>{{ campaign.openedCount }}</td>
+                        <td>{{ campaign.clickedCount }}</td>
+                        <td>
+                            {% if campaign.sentCount > 0 %}
+                                {% set openRate = campaign.getOpenRate() %}
+                                {% set rateClass = openRate >= 20 ? 'green' : (openRate >= 10 ? 'orange' : 'red') %}
+                                <span class="status {{ rateClass }}"></span>
+                                {{ openRate }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if campaign.sentCount > 0 %}
+                                {% set clickRate = campaign.getClickRate() %}
+                                {% set rateClass = clickRate >= 3 ? 'green' : (clickRate >= 1 ? 'orange' : 'red') %}
+                                <span class="status {{ rateClass }}"></span>
+                                {{ clickRate }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ campaign.dateCreated|datetime('short') }}</td>
+                        <td class="thin">
+                            <a href="{{ url('_meditransfer-mailer/analytics/' ~ campaign.id) }}" class="btn small">{{ 'Details'|t('_meditransfer-mailer') }}</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="zilch">
+        <p>{{ 'Noch keine Kampagnen vorhanden.'|t('_meditransfer-mailer') }}</p>
+        <p><a href="{{ url('_meditransfer-mailer/campaigns/new') }}" class="btn submit add">{{ 'Erste Kampagne erstellen'|t('_meditransfer-mailer') }}</a></p>
+    </div>
+{% endif %}
+
+{% endblock %}

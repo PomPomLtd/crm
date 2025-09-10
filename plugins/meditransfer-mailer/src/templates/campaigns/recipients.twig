@@ -1,0 +1,212 @@
+{% extends '_layouts/cp' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = 'Empfänger - ' ~ campaign.name %}
+
+{% set crumbs = [
+    { label: 'Kampagnen'|t('_meditransfer-mailer'), url: url('_meditransfer-mailer/campaigns') },
+    { label: campaign.name, url: url('_meditransfer-mailer/campaigns/' ~ campaign.id) }
+] %}
+
+{% block actionButton %}
+<div class="btngroup">
+    <a href="#" class="btn add-recipients-btn">{{ 'Empfänger hinzufügen'|t('_meditransfer-mailer') }}</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="meta">
+    <div class="data">
+        <h5 class="heading">{{ 'Kampagne'|t('_meditransfer-mailer') }}</h5>
+        
+        <div class="value">
+            <div class="flex">
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Gesamt'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ campaign.totalRecipients }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Versendet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ campaign.sentCount }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geöffnet'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ campaign.openedCount }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <div class="field">
+                        <div class="heading">
+                            <label>{{ 'Geklickt'|t('_meditransfer-mailer') }}</label>
+                        </div>
+                        <div class="input">
+                            {{ campaign.clickedCount }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div id="recipients" class="elementindex">
+    {% if recipients|length %}
+        <div class="tableview">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'E-Mail'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Name'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Organisation'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Typ'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Status'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Versendet'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Geöffnet'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Geklickt'|t('_meditransfer-mailer') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recipient in recipients %}
+                        <tr>
+                            <td>{{ recipient.email }}</td>
+                            <td>{{ recipient.name ?: '-' }}</td>
+                            <td>{{ recipient.organizationName ?: '-' }}</td>
+                            <td>{{ recipient.organizationType ?: '-' }}</td>
+                            <td>
+                                {% set statusClass = '' %}
+                                {% if recipient.status == 'sent' or recipient.status == 'delivered' %}
+                                    {% set statusClass = 'green' %}
+                                {% elseif recipient.status == 'failed' or recipient.status == 'bounced' %}
+                                    {% set statusClass = 'red' %}
+                                {% elseif recipient.status == 'opened' or recipient.status == 'clicked' %}
+                                    {% set statusClass = 'blue' %}
+                                {% elseif recipient.status == 'queued' %}
+                                    {% set statusClass = 'orange' %}
+                                {% endif %}
+                                
+                                <span class="status {{ statusClass }}"></span>
+                                {{ recipient.status|title }}
+                            </td>
+                            <td>{{ recipient.sentDate ? recipient.sentDate|datetime('short') : '-' }}</td>
+                            <td>{{ recipient.openedDate ? recipient.openedDate|datetime('short') : '-' }}</td>
+                            <td>{{ recipient.clickedDate ? recipient.clickedDate|datetime('short') : '-' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'Noch keine Empfänger hinzugefügt.'|t('_meditransfer-mailer') }}</p>
+            <p><a href="#" class="btn submit add add-recipients-btn">{{ 'Empfänger hinzufügen'|t('_meditransfer-mailer') }}</a></p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add Recipients Modal -->
+<div id="add-recipients-modal" class="modal" style="display: none;">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h1>{{ 'Empfänger hinzufügen'|t('_meditransfer-mailer') }}</h1>
+            <button type="button" class="btn modal-close">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="add-recipients-form">
+                {{ hiddenInput('campaignId', campaign.id) }}
+                
+                {{ forms.selectField({
+                    label: 'Section auswählen'|t('_meditransfer-mailer'),
+                    instructions: 'Alle Einträge aus dieser Section hinzufügen'|t('_meditransfer-mailer'),
+                    id: 'sectionId',
+                    name: 'sectionId',
+                    options: [{ label: 'Bitte wählen...', value: '' }]|merge(sectionOptions)
+                }) }}
+                
+                <p class="light">{{ 'oder'|t('_meditransfer-mailer') }}</p>
+                
+                {{ forms.elementSelectField({
+                    label: 'Spezifische Einträge'|t('_meditransfer-mailer'),
+                    instructions: 'Einzelne Einträge manuell auswählen'|t('_meditransfer-mailer'),
+                    id: 'entryIds',
+                    name: 'entryIds',
+                    elementType: 'craft\\elements\\Entry',
+                    multiple: true,
+                    limit: null
+                }) }}
+                
+                <div class="buttons">
+                    <button type="submit" class="btn submit">{{ 'Hinzufügen'|t('_meditransfer-mailer') }}</button>
+                    <button type="button" class="btn modal-close">{{ 'Abbrechen'|t('_meditransfer-mailer') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% js %}
+// Add recipients modal
+$('.add-recipients-btn').on('click', function(e) {
+    e.preventDefault();
+    $('#add-recipients-modal').show();
+});
+
+$('.modal-close').on('click', function() {
+    $('#add-recipients-modal').hide();
+});
+
+// Handle form submission
+$('#add-recipients-form').on('submit', function(e) {
+    e.preventDefault();
+    
+    var formData = {
+        campaignId: $('input[name="campaignId"]').val(),
+        sectionId: $('#sectionId').val(),
+        entryIds: $('#entryIds').val() ? $('#entryIds').val().split(',') : []
+    };
+    
+    Craft.postActionRequest('_meditransfer-mailer/campaigns/add-recipients', formData, function(response) {
+        if (response.success) {
+            Craft.cp.displayNotice(response.message);
+            $('#add-recipients-modal').hide();
+            location.reload();
+        } else {
+            Craft.cp.displayError(response.message || 'Fehler beim Hinzufügen der Empfänger');
+        }
+    });
+});
+
+// Clear entry selection when section is selected
+$('#sectionId').on('change', function() {
+    if ($(this).val()) {
+        $('#entryIds').val('');
+        $('#entryIds-field').hide();
+    } else {
+        $('#entryIds-field').show();
+    }
+});
+{% endjs %}

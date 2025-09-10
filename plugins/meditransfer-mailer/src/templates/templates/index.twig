@@ -1,0 +1,93 @@
+{% extends '_layouts/cp' %}
+
+{% set title = 'E-Mail Vorlagen'|t('_meditransfer-mailer') %}
+
+{% block actionButton %}
+<div class="btngroup">
+    <a href="{{ url('_meditransfer-mailer/templates/new') }}" class="btn submit add icon">{{ 'Neue Vorlage'|t('_meditransfer-mailer') }}</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div id="templates" class="elementindex">
+    {% if templates|length %}
+        <div class="tableview">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'Name'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Handle'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Betreff'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Status'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col">{{ 'Erstellt'|t('_meditransfer-mailer') }}</th>
+                        <th scope="col" class="thin"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                        <tr data-id="{{ template.id }}">
+                            <td>
+                                <a href="{{ url('_meditransfer-mailer/templates/' ~ template.id) }}" class="cell-bold">
+                                    {{ template.name }}
+                                </a>
+                            </td>
+                            <td>
+                                <code>{{ template.handle }}</code>
+                            </td>
+                            <td>{{ template.subject }}</td>
+                            <td>
+                                {% if template.isActive %}
+                                    <span class="status green"></span>
+                                    {{ 'Aktiv'|t('_meditransfer-mailer') }}
+                                {% else %}
+                                    <span class="status"></span>
+                                    {{ 'Inaktiv'|t('_meditransfer-mailer') }}
+                                {% endif %}
+                            </td>
+                            <td>{{ template.dateCreated|datetime('short') }}</td>
+                            <td class="thin">
+                                <div class="btngroup">
+                                    <div class="btn menubtn" data-icon="settings"></div>
+                                    <div class="menu">
+                                        <ul>
+                                            <li><a href="{{ url('_meditransfer-mailer/templates/' ~ template.id) }}">{{ 'Bearbeiten'|t('_meditransfer-mailer') }}</a></li>
+                                            <li><a href="{{ url('_meditransfer-mailer/templates/' ~ template.id ~ '/preview') }}" target="_blank">{{ 'Vorschau'|t('_meditransfer-mailer') }}</a></li>
+                                            <li><a href="#" class="delete-template error" data-id="{{ template.id }}">{{ 'Löschen'|t('_meditransfer-mailer') }}</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'Noch keine Vorlagen vorhanden.'|t('_meditransfer-mailer') }}</p>
+            <p><a href="{{ url('_meditransfer-mailer/templates/new') }}" class="btn submit add">{{ 'Erste Vorlage erstellen'|t('_meditransfer-mailer') }}</a></p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% js %}
+// Handle template deletion
+$('.delete-template').on('click', function(e) {
+    e.preventDefault();
+    var templateId = $(this).data('id');
+    
+    if (confirm('Vorlage wirklich löschen?')) {
+        Craft.postActionRequest('_meditransfer-mailer/templates/delete', {templateId: templateId}, function(response) {
+            if (response.success) {
+                Craft.cp.displayNotice('Vorlage gelöscht');
+                location.reload();
+            } else {
+                Craft.cp.displayError(response.message);
+            }
+        });
+    }
+});
+{% endjs %}
