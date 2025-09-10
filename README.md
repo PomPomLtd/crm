@@ -16,13 +16,22 @@ This is a Craft CMS 5 project with an integrated healthcare data scraping system
 ddev start
 
 # Install dependencies
-composer install
+ddev composer install
 
 # Run migrations
-./craft migrate/all
+ddev craft migrate/all
+
+# Clear caches
+ddev craft clear-caches/all
 
 # Access admin panel
 https://crm.ddev.site/admin/
+
+# Other useful DDEV commands
+ddev stop          # Stop environment
+ddev restart       # Restart services
+ddev ssh           # SSH into web container
+ddev mysql         # Access MySQL CLI
 ```
 
 ### Healthcare Data Scrapers

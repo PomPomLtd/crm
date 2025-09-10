@@ -16,15 +16,15 @@ This is a Craft CMS 5 project with an integrated data scraping system for collec
 - `ddev exec` - Execute commands in the web container
 
 ### Craft CMS Commands
-- `./craft` - Run Craft console commands
-- `./craft migrate/all` - Run all migrations
-- `./craft project-config/apply` - Apply project configuration changes
-- `./craft clear-caches/all` - Clear all caches
+- `ddev craft` - Run Craft console commands
+- `ddev craft migrate/all` - Run all migrations
+- `ddev craft project-config/apply` - Apply project configuration changes
+- `ddev craft clear-caches/all` - Clear all caches
 
 ### Composer
-- `composer install` - Install PHP dependencies
-- `composer update` - Update PHP dependencies
-- `composer require [package]` - Add new PHP package
+- `ddev composer install` - Install PHP dependencies
+- `ddev composer update` - Update PHP dependencies
+- `ddev composer require [package]` - Add new PHP package
 
 ### Database
 - `ddev import-db` - Import database from dump
