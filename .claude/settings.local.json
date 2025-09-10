@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ddev craft:*)",
+      "WebFetch(domain:craftcms.com)",
+      "WebSearch",
+      "Bash(chmod:*)",
+      "Bash(source:*)",
+      "Bash(python3:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

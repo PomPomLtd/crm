@@ -1,0 +1,93 @@
+{
+  "scrapers": {
+    "hospitals": {
+      "name": "Hospitals",
+      "description": "Swiss hospitals from onedoc.ch",
+      "url": "https://www.onedoc.ch/de/spital",
+      "main_script": "hospitals/get-hospitals.py",
+      "main_script_unified": "hospitals/get-hospitals-unified.py",
+      "url_enricher": "hospitals/urlFetch.py",
+      "output_file": "all_hospitals.csv",
+      "final_output": "all_hospitals_with_urls.csv",
+      "web_output": "../web/hospitals.csv"
+    },
+    "clinics": {
+      "name": "Clinics", 
+      "description": "Swiss clinics from onedoc.ch",
+      "url": "https://www.onedoc.ch/de/klinik",
+      "main_script": "clinics/get-clinics.py",
+      "main_script_unified": "clinics/get-clinics-unified.py",
+      "url_enricher": "clinics/urlFetch.py", 
+      "output_file": "all_clinics.csv",
+      "final_output": "all_clinics_with_urls.csv",
+      "web_output": "../web/clinics.csv"
+    },
+    "group-practices": {
+      "name": "Group Practices",
+      "description": "Swiss group practices from onedoc.ch",
+      "url": "https://www.onedoc.ch/de/gruppenpraxis",
+      "main_script": "groupclinics/groupy.py",
+      "main_script_unified": "groupclinics/groupy-unified.py",
+      "url_enricher": "groupclinics/urlFetch.py",
+      "output_file": "all_group_practices.csv", 
+      "final_output": "all_group_practices_with_urls.csv",
+      "web_output": "../web/group_practices.csv"
+    },
+    "medical-clinics": {
+      "name": "Medical Clinics",
+      "description": "Swiss medical clinics from onedoc.ch", 
+      "url": "https://www.onedoc.ch/de/medizinische-praxis",
+      "main_script": "med-clinic/get-medclinics.py",
+      "main_script_unified": "med-clinic/get-medclinics-unified.py",
+      "url_enricher": "med-clinic/urlFetch.py",
+      "output_file": "all_medical_practices.csv",
+      "final_output": "all_medical_practices_with_urls.csv", 
+      "web_output": "../web/med_clinics.csv"
+    },
+    "medical-centers": {
+      "name": "Medical Centers",
+      "description": "Swiss medical centers from onedoc.ch",
+      "url": "https://www.onedoc.ch/de/medizinisches-zentrum",
+      "main_script": "medicalCenters/medicelcenter.py",
+      "main_script_unified": "medicalCenters/medicelcenter-unified.py",
+      "url_enricher": "medicalCenters/urlFetch.py",
+      "output_file": "all_medical_centers.csv",
+      "final_output": "all_medical_centers_with_urls.csv",
+      "web_output": "../web/medicenters.csv"
+    },
+    "complete-directory": {
+      "name": "Complete Directory",
+      "description": "Complete healthcare directory from onedoc.ch",
+      "url": "https://www.onedoc.ch/de/verzeichnis", 
+      "main_script": "docs/onedoc_scraper.py",
+      "main_script_unified": "docs/onedoc_scraper-unified.py",
+      "url_enricher": null,
+      "output_file": "onedoc_complete.csv",
+      "final_output": "onedoc_complete_deduplicated.csv",
+      "web_output": "../web/onedoc_complete_deduplicated.csv"
+    }
+  },
+  "settings": {
+    "searchapi_key": "VQxddzhtWBd9ANBGbtLGd3dk",
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      "Accept-Language": "de-CH,de;q=0.9,en-US;q=0.8,en;q=0.7"
+    },
+    "retry_strategy": {
+      "total": 5,
+      "status_forcelist": [429, 500, 502, 503, 504],
+      "backoff_factor": 2
+    },
+    "delays": {
+      "min_delay": 1,
+      "max_delay": 3,
+      "retry_delay": 10
+    },
+    "banned_domains": ["onedoc.ch", "comparis.ch", "doktor.ch"]
+  },
+  "paths": {
+    "base_dir": "_scrapers",
+    "web_dir": "web",
+    "venv_dir": "_scrapers/venv"
+  }
+}

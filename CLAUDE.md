@@ -121,3 +121,9 @@ The `/web/` directory contains various CSV files with healthcare provider data:
 - Ensure `/storage/` directory is writable
 - CSV files in `/web/` should be publicly accessible
 - Python virtual environment may need activation before running scrapers
+
+## Commit Messages
+
+- **NEVER** add "Generated with Claude Code" or "Co-Authored-By: Claude" to commit messages
+- Keep commit messages clear and descriptive
+- Focus on what was changed and why
