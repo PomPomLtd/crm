@@ -133,12 +133,15 @@ class ScraperManager:
         
         try:
             # Run the script as a subprocess
+            # Set timeout based on script type (email scraper needs more time)
+            timeout = 7200 if 'email' in script_name.lower() else 3600  # 2 hours for email scraper
+            
             result = subprocess.run(
                 [sys.executable, str(script_path)],
                 cwd=str(self.base_dir),
                 capture_output=True,
                 text=True,
-                timeout=3600  # 1 hour timeout
+                timeout=timeout
             )
             
             if result.returncode == 0:

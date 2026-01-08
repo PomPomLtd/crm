@@ -1,0 +1,85 @@
+EXTENDED EMAIL SCRAPER TEST RESULTS
+Generated: 2025-09-10 13:17:58
+Total websites tested: 7
+================================================================================
+
+TEST #1: Augenarzt Sarnen (ID: 312807)
+URL: https://augenarzt-obwalden.ch/
+------------------------------------------------------------
+Status: success
+Total emails found: 1
+All emails: ['info@augenarzt-obwalden.ch']
+✅ Priority emails (secretary/management): ['info@augenarzt-obwalden.ch']
+
+================================================================================
+
+TEST #2: Ärztepraxis Giswil (ID: 312805)
+URL: https://www.aerztepraxis-giswil.ch/
+------------------------------------------------------------
+Status: success
+Total emails found: 6
+All emails: ['kontakt@aerztepraxis-giswil.ch', 'aerztepraxis_giswil@hin.ch', 'praxis@aerztepraxis-giswil.ch', 'aerztepraxis.giswil@hin.ch', 'aerztepraxis-giswil@hin.ch', 'info@aerztepraxis-giswil.ch']
+✅ Priority emails (secretary/management): ['kontakt@aerztepraxis-giswil.ch', 'aerztepraxis_giswil@hin.ch', 'praxis@aerztepraxis-giswil.ch', 'aerztepraxis.giswil@hin.ch', 'aerztepraxis-giswil@hin.ch', 'info@aerztepraxis-giswil.ch']
+
+================================================================================
+
+TEST #3: Zentrum für Integrative Onkologie Glarus - ZIO (ID: 312801)
+URL: https://zio.ch/
+------------------------------------------------------------
+Status: success
+Total emails found: 4
+All emails: ['dpo-google@google.com', 'privacy@defiant.com', 'info@zio.ch', 'mpa.zuerich@zio.ch']
+✅ Priority emails (secretary/management): ['info@zio.ch']
+📎 Other emails: ['dpo-google@google.com', 'privacy@defiant.com', 'mpa.zuerich@zio.ch']
+
+================================================================================
+
+TEST #4: orthopaedie.sh (ID: 312682)
+URL: https://orthopaedie.sh/
+------------------------------------------------------------
+Status: success
+Total emails found: 5
+All emails: ['zuweiserdr.patrick.paulet@hin.chdr.susanne.paulet', 'info@orthopaedie.sh', 'dr.patrick.paulet@hin.ch', '55info@orthopaedie.shnur', 'dr.susanne.paulet@hin.ch']
+✅ Priority emails (secretary/management): ['info@orthopaedie.sh', '55info@orthopaedie.shnur']
+📎 Other emails: ['zuweiserdr.patrick.paulet@hin.chdr.susanne.paulet', 'dr.patrick.paulet@hin.ch', 'dr.susanne.paulet@hin.ch']
+
+================================================================================
+
+TEST #5: Orthopädie Belair (ID: 312680)
+URL: https://www.orthopaedie-belair.ch/de
+------------------------------------------------------------
+Status: no_emails
+Total emails found: 0
+❌ No emails found
+
+================================================================================
+
+TEST #6: Frauenpraxis Schaffhausen (ID: 312660)
+URL: https://www.frauenarztpraxis-schaffhausen.ch/
+------------------------------------------------------------
+Status: success
+Total emails found: 1
+All emails: ['05info@frauenarztpraxis-schaffhausen.chwww.frauenarztpraxis-schaffhausen.ch']
+✅ Priority emails (secretary/management): ['05info@frauenarztpraxis-schaffhausen.chwww.frauenarztpraxis-schaffhausen.ch']
+
+================================================================================
+
+TEST #7: Ärzteteam Seewadel (ID: 312652)
+URL: https://www.swissmedical.net/de/aerztezentren/xundheitszentrum/zentren/seewadel
+------------------------------------------------------------
+Status: success
+Total emails found: 2
+All emails: ['praxis@aerzteteam-seewadel.ch', '60praxis@aerzteteam-seewadel.chunser']
+✅ Priority emails (secretary/management): ['praxis@aerzteteam-seewadel.ch', '60praxis@aerzteteam-seewadel.chunser']
+
+================================================================================
+
+SUMMARY
+================================================================================
+Total websites tested: 7
+Successful extractions: 6 (85.7%)
+Total emails found: 19
+Priority emails found: 13
+Average emails per successful site: 3.2
+
+Protection types encountered:

@@ -65,6 +65,17 @@
       "output_file": "onedoc_complete.csv",
       "final_output": "onedoc_complete_deduplicated.csv",
       "web_output": "../web/onedoc_complete_deduplicated.csv"
+    },
+    "email-scraper": {
+      "name": "Email Scraper",
+      "description": "Extract email addresses from healthcare practice websites",
+      "url": "_TMP/entries.csv",
+      "main_script": "email_scraper.py",
+      "main_script_unified": null,
+      "url_enricher": null,
+      "output_file": "results/scraped_emails_[timestamp].csv",
+      "final_output": "results/scraped_emails_[timestamp].csv",
+      "web_output": "../web/scraped_emails_latest.csv"
     }
   },
   "settings": {

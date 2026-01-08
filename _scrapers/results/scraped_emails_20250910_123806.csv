@@ -1,0 +1,3 @@
+id,title,url,emails,priority_emails,general_emails,other_emails,total_emails_found,scraping_status,error,scraped_at
+312807,Augenarzt Sarnen,https://augenarzt-obwalden.ch/,info@augenarzt-obwalden.ch,info@augenarzt-obwalden.ch,,,1,success,,2025-09-10T12:38:10.377381
+312805,Ärztepraxis Giswil,https://www.aerztepraxis-giswil.ch/,,,,,0,no_emails,,2025-09-10T12:38:15.843313

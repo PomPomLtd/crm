@@ -1,0 +1,16 @@
+EMAIL SCRAPER SUMMARY
+===================
+
+Scraping completed: 2025-09-10 12:38:15
+
+Total entries processed: 2
+Successfully scraped: 1
+Success rate: 50.0%
+Total emails found: 1
+
+Results file: results/scraped_emails_20250910_123806.csv
+Progress file: results/email_scraping_progress_20250910_123806.csv
+
+Status Breakdown:
+  no_emails: 1
+  success: 1

@@ -2,8 +2,8 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
-    "craftcms/cms": "^5.0.0",
-    "craftcms/feed-me": "^6.7.0",
+    "craftcms/cms": "5.8.21",
+    "craftcms/feed-me": "6.11.0",
     "pom-pom/craft-meditransfer-mailer": "dev-main",
     "putyourlightson/craft-dashboard-begone": "^3.0.0",
     "vlucas/phpdotenv": "^5.4.0"
@@ -32,6 +32,11 @@
     {
       "type": "path",
       "url": "plugins/meditransfer-mailer"
+    },
+    {
+      "type": "composer",
+      "url": "https://composer.craftcms.com",
+      "canonical": false
     }
   ]
 }

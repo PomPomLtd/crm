@@ -46,12 +46,16 @@ Unified system for scraping Swiss healthcare provider data from onedoc.ch.
 
 ## Scraper Types
 
+### **Directory Scrapers** (OneDOC.ch)
 1. **hospitals** - Swiss hospitals from onedoc.ch/de/spital
 2. **clinics** - Medical clinics from onedoc.ch/de/klinik  
 3. **group-practices** - Group practices from onedoc.ch/de/gruppenpraxis
 4. **medical-clinics** - Medical clinics from onedoc.ch/de/medizinische-praxis
 5. **medical-centers** - Medical centers from onedoc.ch/de/medizinisches-zentrum
 6. **complete-directory** - Complete directory from onedoc.ch/de/verzeichnis
+
+### **Specialized Scrapers**
+7. **email-scraper** - Extract email addresses from practice websites (for CRM entries with zuweisung=1)
 
 ## File Structure
 
@@ -94,6 +98,7 @@ Edit `config.json` to modify:
 
 ## Examples
 
+### **Directory Scrapers**
 ```bash
 # Show current status of all scrapers
 python scraper_manager.py list
@@ -109,4 +114,27 @@ python scraper_manager.py stats
 
 # Clean up old progress files
 python scraper_manager.py clean
+```
+
+### **Email Scraper**
+```bash
+# Run email scraper for CRM entries (zuweisung=1)
+python scraper_manager.py run email-scraper
+
+# Check email scraper status
+python scraper_manager.py list | grep EMAIL-SCRAPER
+
+# Run email scraper directly (bypass manager)
+python email_scraper.py
+
+# View email scraping results
+head -10 scraped_emails.csv
+
+# Count total emails found
+python3 -c "
+import pandas as pd
+df = pd.read_csv('scraped_emails.csv')
+print(f'Total emails found: {df.total_emails_found.sum()}')
+print(f'Success rate: {len(df[df.scraping_status==\"success\"])/len(df)*100:.1f}%')
+"
 ```
