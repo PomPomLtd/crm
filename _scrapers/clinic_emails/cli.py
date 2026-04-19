@@ -71,6 +71,19 @@ def _run_test(url: str, logger: logging.Logger) -> None:
         for e in bucket:
             src = res["sources"].get(e, "?")
             print(f"  {e}   <- {src}")
+    ref = res.get("referral") or {}
+    if ref.get("found"):
+        print(f"\nReferral section: YES")
+        print(f"  Methods:      {', '.join(ref.get('methods', []))}")
+        print(f"  Pages:        {ref.get('pages')}")
+        if ref.get("emails"):
+            print(f"  Emails:       {ref['emails']}")
+        if ref.get("faxes"):
+            print(f"  Fax:          {ref['faxes']}")
+        for d in ref.get("documents", []):
+            print(f"  Document:     [{d['type'].upper():4}] {d['anchor']!r} -> {d['url']}")
+    else:
+        print(f"\nReferral section: not found")
     print()
 
 
@@ -93,6 +106,7 @@ def _build_entry_result(
         "emails": buckets,
         "sources": sources,
         "pages": crawl_result.get("pages", []),
+        "referral": crawl_result.get("referral", {"found": False}),
         "error": None,
         "ts": datetime.utcnow().isoformat() + "Z",
     }
@@ -170,6 +184,7 @@ def _run_main(args: argparse.Namespace, logger: logging.Logger) -> None:
                 "emails": {"priority": [], "general": [], "other": []},
                 "sources": {},
                 "pages": [],
+                "referral": {"found": False},
                 "error": str(e),
                 "ts": datetime.utcnow().isoformat() + "Z",
             }

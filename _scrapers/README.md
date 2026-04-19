@@ -55,7 +55,7 @@ Unified system for scraping Swiss healthcare provider data from onedoc.ch.
 6. **complete-directory** - Complete directory from onedoc.ch/de/verzeichnis
 
 ### **Specialized Scrapers**
-7. **clinic_emails** — Find real email addresses on clinic websites. Reads target entries directly from the Craft CMS database, crawls homepage + contact/impressum/team pages, and extracts emails via multiple decoders (mailto, Cloudflare `data-cfemail`, WordPress EEB, `(at)/[dot]` obfuscation, HTML entities, DeCryptX known mappings). Rejects noise like Wix Sentry IDs and image-filename look-alikes. Run via `python find_clinic_emails.py --help`.
+7. **clinic_emails** — Find real email addresses on clinic websites AND characterize how each clinic accepts referrals (form / PDF / Word / dedicated email / fax). Reads target entries directly from the Craft CMS database; one crawl pass yields both datasets. Multi-language: DE/FR/IT/EN. Run via `python find_clinic_emails.py --help`.
 
 ## File Structure
 

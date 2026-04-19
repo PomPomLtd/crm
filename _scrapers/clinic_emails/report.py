@@ -24,6 +24,13 @@ CSV_FIELDS = (
     "sources_json",
     "pages_crawled",
     "status",
+    # referral characterization
+    "has_referral",
+    "referral_methods",
+    "referral_pages",
+    "referral_emails",
+    "referral_faxes",
+    "referral_documents_json",
     "error",
     "ts",
 )
@@ -47,6 +54,7 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
                 + list(emails.get("general", []))
                 + list(emails.get("other", []))
             )
+            ref = r.get("referral") or {"found": False}
             w.writerow(
                 [
                     r.get("entry_id"),
@@ -60,6 +68,12 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
                     json.dumps(r.get("sources", {}), ensure_ascii=False),
                     "; ".join(r.get("pages", [])),
                     r.get("status", ""),
+                    "yes" if ref.get("found") else "no",
+                    "; ".join(ref.get("methods", [])),
+                    "; ".join(ref.get("pages", [])),
+                    "; ".join(ref.get("emails", [])),
+                    "; ".join(ref.get("faxes", [])),
+                    json.dumps(ref.get("documents", []), ensure_ascii=False),
                     r.get("error") or "",
                     r.get("ts", ""),
                 ]
@@ -68,13 +82,21 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
     # summary
     total = len(records)
     status_counts: Dict[str, int] = defaultdict(int)
-    by_section = defaultdict(lambda: {"total": 0, "success": 0, "emails": 0})
+    by_section = defaultdict(lambda: {
+        "total": 0, "success": 0, "emails": 0, "referral": 0,
+    })
     domains: Dict[str, int] = defaultdict(int)
     total_emails = 0
     with_emails = 0
     priority_count = 0
     unique_emails = set()
     unique_priority = set()
+    # referral stats
+    referral_total = 0
+    referral_methods: Dict[str, int] = defaultdict(int)
+    referral_doc_types: Dict[str, int] = defaultdict(int)
+    referral_emails_count = 0
+    referral_fax_count = 0
 
     for r in records:
         status_counts[r.get("status", "unknown")] += 1
@@ -99,6 +121,17 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
                     pass
         if bucket_total > 0:
             with_emails += 1
+
+        ref = r.get("referral") or {}
+        if ref.get("found"):
+            referral_total += 1
+            by_section[sec]["referral"] += 1
+            for m in ref.get("methods", []):
+                referral_methods[m] += 1
+            for d in ref.get("documents", []):
+                referral_doc_types[d.get("type", "?")] += 1
+            referral_emails_count += len(ref.get("emails", []))
+            referral_fax_count += len(ref.get("faxes", []))
 
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write("Clinic Email Scraper — Report\n")
@@ -129,10 +162,26 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
         f.write("\nBy section:\n")
         for sec, c in sorted(by_section.items()):
             rate = 100 * c["success"] / c["total"] if c["total"] else 0
+            ref_pct = 100 * c["referral"] / c["total"] if c["total"] else 0
             f.write(
                 f"  {sec}: {c['success']}/{c['total']} success "
-                f"({rate:.1f}%), {c['emails']} emails\n"
+                f"({rate:.1f}%), {c['emails']} emails, "
+                f"{c['referral']} referral sections ({ref_pct:.1f}%)\n"
             )
+        f.write(f"\nReferral sections: {referral_total}/{total}")
+        if total:
+            f.write(f"  ({100 * referral_total / total:.1f}%)")
+        f.write("\n")
+        if referral_total:
+            f.write("  Methods:\n")
+            for m, n in sorted(referral_methods.items(), key=lambda kv: -kv[1]):
+                f.write(f"    {m}: {n}\n")
+            if referral_doc_types:
+                f.write("  Document types:\n")
+                for t, n in sorted(referral_doc_types.items(), key=lambda kv: -kv[1]):
+                    f.write(f"    .{t}: {n}\n")
+            f.write(f"  Referral emails extracted: {referral_emails_count}\n")
+            f.write(f"  Fax numbers extracted: {referral_fax_count}\n")
         f.write("\nTop 25 email domains:\n")
         for d, n in sorted(domains.items(), key=lambda kv: -kv[1])[:25]:
             f.write(f"  {d}: {n}\n")

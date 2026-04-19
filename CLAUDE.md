@@ -52,7 +52,12 @@ python find_clinic_emails.py --report            # rebuild CSV from checkpoint
 python -m pytest tests/ -v                       # unit tests (35+ cases)
 ```
 
-Reads target entries directly from the Craft DB via `ddev mysql` (sections 2-6 only; section 1 = solo doctors excluded). For each site it fetches the homepage + top-scored contact/impressum/team pages and extracts emails via several decoders: mailto, Cloudflare `data-cfemail` XOR, WordPress email-encoder-bundle, `(at)/[dot]` text obfuscation, HTML entities, `data-email` attributes, DeCryptX known-ciphertext lookup. Filters Wix/Sentry noise and image-filename look-alikes. Classifies into `priority` (info/kontakt/secretary prefixes, plus every `*@hin.ch` address since that's the Swiss healthcare HIN network), `general` (doctor prefixes), `other`. Resumable via append-only JSONL checkpoint (`results/clinic_emails_checkpoint.jsonl`).
+Reads target entries directly from the Craft DB via `ddev mysql` (sections 2-6 only; section 1 = solo doctors excluded). For each site it fetches the homepage + top-scored contact/impressum/team pages **and top-scored referral pages** (Zuweiser / Médecins référents / Medici invianti / Refer-a-Patient) and extracts:
+
+1. **Emails** via several decoders: mailto, Cloudflare `data-cfemail` XOR, WordPress email-encoder-bundle, `(at)/[dot]` text obfuscation, HTML entities, `data-email` attributes, DeCryptX known-ciphertext lookup. Filters Wix/Sentry noise and image-filename look-alikes. Classifies into `priority` (info/kontakt/secretary prefixes, plus every `*@hin.ch` address since that's the Swiss healthcare HIN network), `general` (doctor prefixes), `other`.
+2. **Referral characterization** (DE/FR/IT/EN): does this clinic have a referral section, and HOW does it accept referrals? Methods detected: web form (`form`), downloadable PDF (`pdf`), Word/RTF/ODT (`doc`), dedicated email (`email`), fax number (`fax`), or `page-only` text. PDF/DOC links are filtered: only those with referral keywords in href/anchor — unless the page URL itself is unambiguously referral-themed, in which case generic docs pass through.
+
+Both passes piggyback on the same HTTP fetches; one crawl yields both data sets. Resumable via append-only JSONL checkpoint (`results/clinic_emails_checkpoint.jsonl`).
 
 Companion diagnostic: `research_email_patterns.py` samples N random URLs and catalogs which obfuscation patterns / CMSs / contact-page conventions exist in the target population. Useful for gauging expected hit rate before a long run and for discovering new decoders worth adding.
 

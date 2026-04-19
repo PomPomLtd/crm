@@ -19,7 +19,7 @@ from __future__ import annotations
 import random
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -33,6 +33,8 @@ from .patterns import (
     FALLBACK_PROBE_PATHS,
     SKIP_PATH_EXTENSIONS,
 )
+from .referral import aggregate as aggregate_referral
+from .referral import detect_referral_signals, score_referral_links
 
 
 # ---------------------------------------------------------------------------
@@ -241,19 +243,27 @@ def crawl_entry(
     rl: DomainRateLimiter,
     stop: threading.Event,
     max_contact_pages: int = 4,
+    max_referral_pages: int = 2,
 ) -> Dict[str, object]:
-    """Fetch homepage + top contact pages. Returns {emails, sources, pages, status}.
+    """Fetch homepage + top contact + top referral pages.
+
+    Returns {emails, sources, pages, status, referral}.
 
     Behavior:
     - If the entry URL 404s, retries at the domain root.
     - If the homepage has no contact link candidates, probes FALLBACK_PROBE_PATHS.
+    - Referral pages are discovered via REFERRAL_HINT_WEIGHTS scoring and
+      crawled in addition to (and de-duped against) contact pages.
+    - Email extraction AND referral detection both run on every fetched page,
+      so we get both data sets from one HTTP pass.
     - Same-domain rate limiting via `rl`.
     """
-    result = {
-        "emails": set(),      # type: ignore[assignment]
-        "sources": {},        # email -> first page that yielded it
-        "pages": [],          # list of URLs actually crawled
+    result: Dict[str, Any] = {
+        "emails": set(),
+        "sources": {},
+        "pages": [],
         "status": "no_url",
+        "referral": {"found": False},
     }
 
     url = (url or "").strip()
@@ -283,31 +293,47 @@ def crawl_entry(
         result["status"] = "success"
 
     pages: List[str] = [primary]
-    for email in extract_emails(html):
-        if email not in result["sources"]:
-            result["sources"][email] = primary
-            result["emails"].add(email)  # type: ignore[attr-defined]
+    referral_findings: List[Dict[str, Any]] = []
 
-    # Discover contact pages
-    contact_links = [u for (u, _score) in score_contact_links(html, primary, limit=max_contact_pages)]
-    if not contact_links:
+    def _process(html_text: str, page_url: str) -> None:
+        for email in extract_emails(html_text):
+            if email not in result["sources"]:
+                result["sources"][email] = page_url
+                result["emails"].add(email)  # type: ignore[attr-defined]
+        finding = detect_referral_signals(html_text, page_url)
+        if finding:
+            referral_findings.append(finding)
+
+    _process(html, primary)
+
+    # Discover contact + referral pages from the homepage's links
+    contact_links = [u for (u, _s) in score_contact_links(html, primary, limit=max_contact_pages)]
+    referral_links = [u for (u, _s) in score_referral_links(html, primary, limit=max_referral_pages)]
+
+    if not contact_links and not referral_links:
         contact_links = probe_fallback_paths(primary, rl, stop)
 
-    for curl in contact_links[:max_contact_pages]:
+    # De-dupe across the two sets so we don't fetch the same URL twice
+    seen_urls = set(pages)
+    follow_urls: List[str] = []
+    for u in referral_links + contact_links:
+        if u in seen_urls:
+            continue
+        seen_urls.add(u)
+        follow_urls.append(u)
+
+    for curl in follow_urls[: max_contact_pages + max_referral_pages]:
         if stop.is_set():
             break
-        chtml, cstatus, cfinal = fetch_html(curl, rl, stop)
+        chtml, _cstatus, cfinal = fetch_html(curl, rl, stop)
         if chtml is None:
             continue
         actual = cfinal or curl
         pages.append(actual)
-        for email in extract_emails(chtml):
-            if email not in result["sources"]:
-                result["sources"][email] = actual
-                result["emails"].add(email)  # type: ignore[attr-defined]
+        _process(chtml, actual)
 
     result["pages"] = pages
+    result["referral"] = aggregate_referral(referral_findings)
     if not result["emails"]:
-        # downgrade status: page fetches succeeded but nothing to show
         result["status"] = "no_emails"
     return result

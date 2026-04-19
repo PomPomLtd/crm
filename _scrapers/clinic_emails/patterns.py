@@ -60,6 +60,87 @@ CONTACT_HINT_WEIGHTS = {
     "legal": 1, "cgu": 1,
 }
 
+# --- Referral-section discovery (DE / FR / IT / EN) ---
+#
+# Many Swiss clinics publish a dedicated "Zuweiser" / "Médecins référents" /
+# "Medici invianti" / "Referring Physicians" section explaining how other
+# practitioners can refer patients. We piggyback on the email crawl to
+# detect and characterize these (form? PDF? email? fax?).
+
+# Path/link-text hints for finding the referral page itself.
+REFERRAL_HINT_WEIGHTS = {
+    # German
+    "zuweis": 4,           # zuweiser, zuweisung, zuweisende
+    "uberweis": 4, "überweis": 4,
+    "einweis": 3,          # einweisung, einweiser
+    "fuer-zuweis": 4, "für-zuweis": 4,
+    "fuer-aerzte": 3, "für-aerzte": 3, "fuer-ärzte": 3, "für-ärzte": 3,
+    "fachpersonen": 2, "fachpersonal": 2,
+    "patientenanmeldung": 3,
+    # French
+    "referent": 4, "référent": 4,
+    "referents": 4, "référents": 4,
+    "addresseur": 3, "adresseur": 3,
+    "envoi-de-patient": 3,
+    "demande-de-consultation": 3,
+    "pour-medecin": 3, "pour-médecin": 3,
+    "professionnels-sante": 2, "professionnels-de-sante": 2,
+    # Italian
+    "rinvio": 3,
+    "medici-invianti": 4,
+    "invio-pazient": 3,
+    "richiesta-consulto": 3,
+    "professionisti-sanitari": 2,
+    # English
+    "referral": 4,
+    "referrer": 4,
+    "refer-a-patient": 4, "refer_a_patient": 4,
+    "referring-physician": 4,
+    "for-physicians": 3, "for-providers": 3,
+    "healthcare-professionals": 2,
+}
+
+# Filename hints for downloadable referral forms (matched against href + anchor).
+REFERRAL_DOC_HINTS = (
+    # German
+    "zuweis", "uberweis", "überweis", "einweis",
+    "anmeld", "patientenanmeldung", "anmeldeformular",
+    # French
+    "referent", "référent", "addresseur", "orientation",
+    "demande-consult", "fiche-patient",
+    # Italian
+    "richiesta", "modulo-rinvio", "modulo-invio",
+    # English
+    "referral", "referring", "request-form", "patient-referral",
+)
+
+DOC_EXTENSIONS = (".pdf", ".doc", ".docx", ".rtf", ".odt")
+
+# Email-prefix patterns specific to referrals
+REFERRAL_EMAIL_PREFIXES = (
+    "zuweis", "ueberweis", "überweis", "uberweis", "einweis",
+    "anmeldung", "patientenanmeldung",
+    "referent", "référent",
+    "referral", "referring",
+)
+
+# Free-text indicators that this page IS about referrals (used for heuristic
+# scoring after fetching, not for path matching).
+REFERRAL_TEXT_HINTS = (
+    "zuweiser", "zuweisung", "zuweisende ärzte", "zuweisende aerzte",
+    "überweisung", "ueberweisung", "überweiser", "ueberweiser",
+    "einweisung",
+    "für zuweisende", "fuer zuweisende",
+    "patientenanmeldung",
+    "médecins référents", "medecins referents",
+    "envoi de patient", "demande de consultation",
+    "pour les médecins", "pour les medecins",
+    "medici invianti", "rinvio",
+    "richiesta di consulto",
+    "for referring", "referring physicians", "refer a patient",
+    "patient referral",
+)
+
 # If the entry URL 404s or no contact link is discoverable, try these paths at
 # the domain root. Ordered most-likely first.
 FALLBACK_PROBE_PATHS = (
