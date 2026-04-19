@@ -55,7 +55,7 @@ Unified system for scraping Swiss healthcare provider data from onedoc.ch.
 6. **complete-directory** - Complete directory from onedoc.ch/de/verzeichnis
 
 ### **Specialized Scrapers**
-7. **email-scraper** - Extract email addresses from practice websites (for CRM entries with zuweisung=1)
+7. **clinic_emails** — Find real email addresses on clinic websites. Reads target entries directly from the Craft CMS database, crawls homepage + contact/impressum/team pages, and extracts emails via multiple decoders (mailto, Cloudflare `data-cfemail`, WordPress EEB, `(at)/[dot]` obfuscation, HTML entities, DeCryptX known mappings). Rejects noise like Wix Sentry IDs and image-filename look-alikes. Run via `python find_clinic_emails.py --help`.
 
 ## File Structure
 
@@ -116,25 +116,44 @@ python scraper_manager.py stats
 python scraper_manager.py clean
 ```
 
-### **Email Scraper**
+### **Clinic Email Finder** (`clinic_emails` package)
+
+Reads targets directly from the Craft DB (sections 2/3/4/5/6 only — solo doctors in section 1 are excluded), crawls each site, extracts emails. Resumable via JSONL checkpoint; single-terminal, multi-threaded with per-domain rate limiting.
+
 ```bash
-# Run email scraper for CRM entries (zuweisung=1)
-python scraper_manager.py run email-scraper
+# One-time: dump target entries from DB (~18k with practice URL)
+python find_clinic_emails.py --refresh-input
 
-# Check email scraper status
-python scraper_manager.py list | grep EMAIL-SCRAPER
+# Diagnose one URL
+python find_clinic_emails.py --test https://www.praxismuehleberg.ch/
 
-# Run email scraper directly (bypass manager)
-python email_scraper.py
+# Random benchmark on 20 entries
+python find_clinic_emails.py --sample 20
 
-# View email scraping results
-head -10 scraped_emails.csv
+# Restrict to one section (6 = hospitals)
+python find_clinic_emails.py --section 6 --workers 10
 
-# Count total emails found
-python3 -c "
-import pandas as pd
-df = pd.read_csv('scraped_emails.csv')
-print(f'Total emails found: {df.total_emails_found.sum()}')
-print(f'Success rate: {len(df[df.scraping_status==\"success\"])/len(df)*100:.1f}%')
-"
+# Full run (resumable — Ctrl-C and re-run anytime)
+python find_clinic_emails.py --workers 8
+
+# Rebuild CSV + summary from existing checkpoint
+python find_clinic_emails.py --report
+```
+
+Outputs land in `results/`:
+- `clinic_emails_checkpoint.jsonl` — append-only state; source-of-truth for resume
+- `clinic_emails_<ts>.csv` — one row per entry, columns for priority/general/other buckets
+- `clinic_emails_<ts>_summary.txt` — per-section hit rate, top email domains
+
+**Unit tests** (all extractor decoders):
+```bash
+python -m pytest tests/ -v
+```
+
+**Reconnaissance tool** — sample N sites and catalog which obfuscation patterns exist, which CMSs dominate, whether contact links are discoverable. Useful for gauging expected hit rate before a long run.
+
+```bash
+python research_email_patterns.py --n 80 --seed 7
+# -> results/research_patterns_<ts>.md
+```
 ```
