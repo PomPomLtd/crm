@@ -6,7 +6,9 @@
       "WebSearch",
       "Bash(chmod:*)",
       "Bash(source:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(ddev composer *)",
+      "Bash(ddev mysql *)"
     ],
     "deny": [],
     "ask": []

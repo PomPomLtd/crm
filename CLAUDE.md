@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Craft CMS 5 application for Pom Pom GmbH combining two distinct subsystems:
+Craft CMS 5 application for Pom Pom GmbH combining three distinct subsystems:
 
-1. **Craft CMS backend** (PHP 8.2+) using Feed Me for CSV imports. Healthcare-provider entries live in sections `medicalCenters` (2), `clinics` (3), `groupPractices` (4), `medClinics` (5), `hospitals` (6); section 1 (`crmDocs`) holds solo doctors. A custom "MediTransfer Mailer" plugin previously lived under `plugins/` but has been removed and is slated for a rewrite.
+1. **Craft CMS backend** (PHP 8.2+) using Feed Me for CSV imports. Healthcare-provider entries live in sections `medicalCenters` (2), `clinics` (3), `groupPractices` (4), `medClinics` (5), `hospitals` (6); section 1 (`crmDocs`) holds solo doctors. A custom "MediTransfer Mailer" plugin previously lived under `plugins/` but has been removed; the rewrite lives outside Craft as a standalone Python service (see `_mailer/`).
 2. **Python scraping suite** under `_scrapers/` that collects Swiss healthcare provider data from `onedoc.ch` and emits CSVs to `/web/`, which are then imported into Craft via Feed Me.
+3. **Cold-outreach mailer** under `_mailer/` (separate Python app, deployed standalone on Fly.io) that sends the MediTransfer A/B/C campaign to ~10–15k clinics via Postmark, tracks opens/clicks/conversions, and serves a small dashboard.
 
 Local development runs inside DDEV (nginx-fpm, PHP 8.3, MySQL 8.0). The public URL is `https://crm.ddev.site`.
 
@@ -74,9 +75,27 @@ Separate from the clinic email finder. These populate Craft in the first place:
 
 ```
 onedoc.ch → scraper_manager.py → _scrapers/*.csv → /web/*.csv → Feed Me → Craft entries
+                                                                ↘ _mailer/ (reads scraper checkpoint + Craft DB for segmentation)
 ```
 
 CSV filenames in `/web/` are referenced by Feed Me feed configs stored in Craft's project config (`config/project/`). Renaming or moving a web CSV will break the corresponding feed.
+
+### Cold-outreach mailer (`_mailer/`)
+
+Standalone Python service (Flask + SQLite + Postmark) deployed to Fly.io as `meditransfer-mailer.fly.dev`. Sends the MediTransfer cold-outreach campaign to ~10–15k Swiss clinics with three-way A/B/C split testing.
+
+**Read `_mailer/README.md` first** — it documents the full architecture, ops workflow, env vars, dashboard, conversion endpoint, and Fly deployment.
+
+Quick orientation:
+
+- Reads emails from `_scrapers/results/clinic_emails_checkpoint.jsonl` (the scraper's append-only checkpoint).
+- Reads canton/profession/section segmentation from the Craft DB via `ddev mysql` (same query pattern as `_scrapers/clinic_emails/entries.py`).
+- All sending happens **inside the Fly container** via `fly ssh console -C "python send_mailer.py …"` so the SQLite state DB on the mounted volume is the single source of truth. Local CLI runs are dev-only.
+- Webhooks (open/click/bounce/spam/subscription) land at `/webhook/postmark`; conversions from the meditransfer.ch site land at `/api/conversion` (see `_mailer/CONVERSION_API.md` for the integration handoff).
+- Dashboard at `/dashboard` (HTTP Basic Auth).
+- 55 unit tests under `_mailer/tests/`; run via `cd _mailer && ../_scrapers/venv/bin/python -m pytest tests/ -v`.
+
+**Don't** re-add the old MediTransfer Mailer Craft plugin — it was deliberately removed and the rewrite is intentionally external to Craft.
 
 ### Craft config notes
 

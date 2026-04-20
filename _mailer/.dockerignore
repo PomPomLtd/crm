@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+state/
+out/
+tests/
+.pytest_cache/
+**/__pycache__/
+*.pyc
+.DS_Store
+fly.toml

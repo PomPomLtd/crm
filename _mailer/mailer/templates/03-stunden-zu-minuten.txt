@@ -1,0 +1,41 @@
+MEDITRANSFER  -  Stunden -> Minuten
+
+EIN RUHIGERER PRAXISALLTAG.
+
+Zuweisungen digital empfangen, sortieren und beantworten - so einfach
+wie E-Mail, aber strukturiert und sicher.
+
+HEUTE (zeitintensiv):
+  . Zuweisungen abtippen
+  . Manuelle Triage
+  . Rueckfragen per Telefon
+  . Bestaetigungen von Hand
+  . Status schwer nachvollziehbar
+
+MIT MEDITRANSFER (in Minuten erledigt):
+  - Strukturierte Formulare
+  - Auto-Triage pro Fachrichtung
+  - Alles im Dashboard sortiert
+  - Automatische Bestaetigungen
+  - Status jederzeit sichtbar
+
+80 % Zeitersparnis bei der Erfassung eingehender Zuweisungen.
+
+Testen Sie es unverbindlich - 30 Tage kostenlos. Einrichtung dauert
+weniger als eine Kaffeepause.
+
+Code:  WELCOME30  -  30 % auf 3 Monate
+
+Jetzt 30 Tage testen -> {{ cta_url }}
+Keine Kreditkarte - entwickelt mit Schweizer Arztpraxen.
+
+---
+Pom Pom GmbH - Kalkbreitestrasse 6 - 8003 Zuerich - hello@meditransfer.ch
+Schweizer Hosting - nDSG-konform - Art. 321 StGB
+
+Impressum:    https://meditransfer.ch/impressum
+Datenschutz:  https://meditransfer.ch/datenschutz
+Abmelden:     {{ unsubscribe_url }}
+
+(c) 2026 Pom Pom GmbH. Diese E-Mail wurde an medizinische Fachpersonen
+in der Schweiz versandt.

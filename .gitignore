@@ -50,6 +50,16 @@ _scrapers/results/clinic_emails_*_summary.txt
 _scrapers/results/clinic_entries.json
 _scrapers/results/research_patterns_*.json
 
+# Mailer runtime artifacts
+_mailer/.env
+_mailer/state/*.db
+_mailer/state/*.db-journal
+_mailer/state/*.db-wal
+_mailer/state/*.db-shm
+_mailer/out/
+_mailer/.pytest_cache/
+_mailer/**/__pycache__/
+
 # IDE files
 .vscode/
 *.swp
