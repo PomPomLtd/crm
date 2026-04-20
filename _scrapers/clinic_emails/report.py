@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from .checkpoint import Checkpoint
+from .patterns import NOISE_EMAIL_DOMAINS, NOISE_EMAIL_DOMAIN_SUFFIXES
 
 
 CSV_FIELDS = (
@@ -36,9 +37,42 @@ CSV_FIELDS = (
 )
 
 
+def _is_noise_email(email: str) -> bool:
+    """Retroactive noise check — applied at report time so the noise list
+    can evolve without needing to rescrape already-processed entries."""
+    if "@" not in email:
+        return True
+    domain = email.split("@", 1)[1].lower()
+    if domain in NOISE_EMAIL_DOMAINS:
+        return True
+    if any(domain.endswith(sfx) for sfx in NOISE_EMAIL_DOMAIN_SUFFIXES):
+        return True
+    return False
+
+
+def _filter_record_inplace(r: Dict[str, Any]) -> int:
+    """Strip noise emails from a checkpoint record. Returns count removed."""
+    removed = 0
+    emails = r.get("emails") or {}
+    for bucket in ("priority", "general", "other"):
+        kept = [e for e in emails.get(bucket, []) if not _is_noise_email(e)]
+        removed += len(emails.get(bucket, [])) - len(kept)
+        emails[bucket] = kept
+    r["emails"] = emails
+    sources = r.get("sources") or {}
+    r["sources"] = {e: src for e, src in sources.items() if not _is_noise_email(e)}
+    return removed
+
+
 def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, str]:
     """Write timestamped CSV + summary .txt. Returns file paths."""
     records: List[Dict[str, Any]] = list(checkpoint.iter_records())
+    # Retroactive noise filter — applies the current NOISE_EMAIL_DOMAINS
+    # list to already-scraped records, so adding new template placeholders
+    # cleans up historical data without re-scraping.
+    noise_removed = sum(_filter_record_inplace(r) for r in records)
+    if noise_removed:
+        logger.info(f"Retroactive noise filter removed {noise_removed} email(s).")
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     os.makedirs(results_dir, exist_ok=True)
     csv_path = os.path.join(results_dir, f"clinic_emails_{ts}.csv")
@@ -133,10 +167,16 @@ def write_report(checkpoint: Checkpoint, results_dir: str, logger) -> Dict[str, 
             referral_emails_count += len(ref.get("emails", []))
             referral_fax_count += len(ref.get("faxes", []))
 
+    unique_urls = {r.get("url") for r in records if r.get("url")}
+
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write("Clinic Email Scraper — Report\n")
         f.write(f"Generated: {datetime.now().isoformat()}\n\n")
         f.write(f"Entries in checkpoint: {total}\n")
+        f.write(
+            f"Unique practice URLs:  {len(unique_urls)}  "
+            f"(DB has {total - len(unique_urls)} duplicate entries pointing to the same sites)\n"
+        )
         if total:
             f.write(
                 f"Entries with >=1 email: {with_emails} ({100 * with_emails / total:.1f}%)\n"

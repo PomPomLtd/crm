@@ -168,9 +168,13 @@ NOISE_EMAIL_DOMAINS = {
     "sentry.wixpress.com",
     "sentry-next.wixpress.com",
     "sentry.io",
+    # generic CMS / theme placeholder domains
     "example.com", "example.ch", "example.org",
-    "domain.com", "domain.ch",
+    "domain.com", "domain.ch", "domain.tld",
     "yourmail.com", "mail.com",
+    "company.com", "yourcompany.com",
+    "yourdomain.com", "placeholder.com",
+    "test.com", "test.ch",
     "localhost",
 }
 
