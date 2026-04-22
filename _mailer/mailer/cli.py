@@ -38,9 +38,9 @@ DEFAULT_TEMPLATE_MAP = {
     "C": "03-stunden-zu-minuten",
 }
 DEFAULT_SUBJECT_MAP = {
-    "A": "Zuweisungen digital – ein kurzer Brief aus Zürich",
-    "B": "Patientenüberweisungen einfach digital – 30 Tage kostenlos",
-    "C": "Stunden → Minuten: Zuweisungen, die sich selbst sortieren",
+    "A": "Ihre Zuweisungen an einem Ort",
+    "B": "Patientenzuweisungen einfach digital – 30 Tage kostenlos",
+    "C": "Zeit gewinnen bei Patientenzuweisungen",
 }
 
 
@@ -78,6 +78,7 @@ def cmd_targets_build(args: argparse.Namespace) -> int:
         has_referral=has_referral,
         bucket=args.bucket,
         enrich=not args.no_enrich,
+        one_per_domain=args.one_per_domain,
     )
 
     out = Path(args.out).resolve()
@@ -168,13 +169,20 @@ def cmd_campaign_create(args: argparse.Namespace) -> int:
             (templates["A"], templates["B"], templates["C"], campaign_id),
         )
 
-        counts = {"A": 0, "B": 0, "C": 0, "opted_out": 0, "added": 0}
+        previously_sent: set[str] = set()
+        if not args.include_previously_sent:
+            previously_sent = db.emails_previously_sent(conn)
+
+        counts = {"A": 0, "B": 0, "C": 0, "opted_out": 0, "previously_sent": 0, "added": 0}
         for row in rows:
             email = (row.get("email") or "").strip().lower()
             if not email:
                 continue
             if db.is_opted_out(conn, email):
                 counts["opted_out"] += 1
+                continue
+            if email in previously_sent:
+                counts["previously_sent"] += 1
                 continue
             variant = assign_variant(email, salt=args.name)
             has_ref = (row.get("has_referral") or "").strip().lower() == "yes"
@@ -198,7 +206,8 @@ def cmd_campaign_create(args: argparse.Namespace) -> int:
         print(f"Campaign '{args.name}' (id={campaign_id}) created.")
         print(f"  Templates: {templates}")
         print(f"  Variants:  A={counts['A']}  B={counts['B']}  C={counts['C']}")
-        print(f"  Skipped (opted out): {counts['opted_out']}")
+        print(f"  Skipped (opted out):       {counts['opted_out']}")
+        print(f"  Skipped (already sent to): {counts['previously_sent']}")
         print(f"  Total added: {counts['added']}")
     return 0
 
@@ -420,6 +429,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_tb.add_argument("--bucket", choices=list(targets.BUCKET_CHOICES), default="priority")
     p_tb.add_argument("--no-enrich", action="store_true",
                       help="Skip Craft DB enrichment (canton/profession will be blank)")
+    p_tb.add_argument("--one-per-domain", action="store_true",
+                      help="Keep only one recipient per email domain (first-occurrence wins, "
+                           "and priority bucket already wins over general/other)")
     p_tb.set_defaults(func=cmd_targets_build)
 
     # campaign create / list
@@ -436,6 +448,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_cc.add_argument("--subject-b")
     p_cc.add_argument("--subject-c")
     p_cc.add_argument("--notes")
+    p_cc.add_argument(
+        "--include-previously-sent", action="store_true",
+        help="Include emails that were already sent to in previous campaigns "
+             "(default: skip them; set this flag only for deliberate re-engagement sends)",
+    )
     p_cc.set_defaults(func=cmd_campaign_create)
 
     p_cl = p_camp.add_parser("list", help="List campaigns")

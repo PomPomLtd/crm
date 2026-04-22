@@ -71,13 +71,15 @@ def _normalize_canton(value: str) -> Optional[str]:
 def _extract_canton_and_profession(content: Any) -> tuple[Optional[str], Optional[str]]:
     """Heuristic: walk the content JSON and identify canton + profession.
 
-    The content is a dict keyed by field-layout-element UIDs. Values are
-    typed — we look at plain-string values and match them against known
-    canton tokens for canton, or take the first sufficiently long string
-    value that looks like a specialty label for profession.
+    Craft stores content as a dict keyed by field-layout-element UIDs. Most
+    simple fields are raw string/int/bool values; URL and other typed fields
+    are dicts like ``{"type": "url", "value": "https://..."}``. We inspect
+    both forms, pull the plain string content, and match it against known
+    canton tokens for canton, or accept the first sufficiently long, non-URL,
+    non-canton, non-phone string value as profession.
 
-    This is a pragmatic extractor; swap it for explicit UID reads once
-    the per-section field UIDs are documented.
+    This is a pragmatic extractor; swap it for explicit UID reads once the
+    per-section field UIDs are documented.
     """
     if not isinstance(content, dict):
         return None, None
@@ -86,13 +88,15 @@ def _extract_canton_and_profession(content: Any) -> tuple[Optional[str], Optiona
     profession: Optional[str] = None
 
     for val in content.values():
-        if not isinstance(val, dict):
+        if isinstance(val, str):
+            s = val.strip()
+        elif isinstance(val, dict):
+            if val.get("type") == "url":
+                continue
+            raw = val.get("value")
+            s = raw.strip() if isinstance(raw, str) else ""
+        else:
             continue
-        vtype = val.get("type")
-        raw = val.get("value")
-        if vtype != "plainText" and not isinstance(raw, str):
-            continue
-        s = (raw or "").strip()
         if not s:
             continue
 
@@ -102,8 +106,15 @@ def _extract_canton_and_profession(content: Any) -> tuple[Optional[str], Optiona
                 canton = guess
                 continue
 
-        if profession is None and 3 < len(s) < 60 and any(ch.isalpha() for ch in s):
+        if profession is None and 3 < len(s) < 200 and any(ch.isalpha() for ch in s):
             if _normalize_canton(s) is None and not s.startswith(("http", "+", "0")):
+                # Skip obvious non-profession fields: addresses (contain digits
+                # and commas), city-only fields (too short & matches no canton),
+                # status enums ("new").
+                if "," in s and any(ch.isdigit() for ch in s):
+                    continue
+                if len(s) < 8:
+                    continue
                 profession = s
 
     return canton, profession
@@ -196,6 +207,7 @@ def build_recipients(
     has_referral: Optional[bool] = None,
     bucket: str = "priority",
     enrich: bool = True,
+    one_per_domain: bool = False,
 ) -> list[Recipient]:
     if bucket not in BUCKET_CHOICES:
         raise ValueError(f"bucket must be one of {BUCKET_CHOICES}")
@@ -260,6 +272,20 @@ def build_recipients(
         if profession_needle and profession_needle not in (rec.profession or "").lower():
             continue
         recipients.append(rec)
+
+    if one_per_domain:
+        # Priority emails already win over general/other because _bucketed_emails
+        # yields in priority→general→other order, so first-occurrence dedup by
+        # domain keeps the best-bucket address.
+        seen: set[str] = set()
+        kept: list[Recipient] = []
+        for rec in recipients:
+            domain = rec.email.rsplit("@", 1)[-1].lower()
+            if domain in seen:
+                continue
+            seen.add(domain)
+            kept.append(rec)
+        recipients = kept
 
     recipients.sort(key=lambda r: (r.section, r.entry_id, r.email))
     return recipients

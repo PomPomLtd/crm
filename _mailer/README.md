@@ -67,14 +67,13 @@ local `state/mailer.db` which is not the source of truth.
 
 ## Templates
 
-Four Postmark-safe HTML designs in `mailer/templates/`:
+Three Postmark-safe HTML designs in `mailer/templates/`:
 
 | Stem | Style | Recommended role |
 |---|---|---|
 | `01-der-brief` | Founder letter, plain-text feel, minimal graphics | **Cold send** (default A) |
 | `02-hero-cta` | Blue gradient hero + 3 bullets + VML CTA button | Brand awareness (default B) |
 | `03-stunden-zu-minuten` | Two-column Heute-vs-Meditransfer compare | Benefits-forward (default C) |
-| `04-bento-benefits` | Four-card bento grid, highest visual weight | Re-engagement / send #3 |
 
 Each stem has a matching `.txt` plain-text alternative (deliverability requires it).
 

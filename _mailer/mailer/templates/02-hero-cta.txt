@@ -1,29 +1,30 @@
-MEDITRANSFER  -  Fuer Schweizer Facharztpraxen & Kliniken
+MEDITRANSFER  -  Zuweisungen. Digital.
 
-PATIENTENUEBERWEISUNGEN - EINFACH DIGITAL.
+ZUWEISUNGEN, AN EINEM ORT.
 
-Empfangen Sie Zuweisungen sicher, strukturiert und papierlos - statt
-per Fax.
+Fax, E-Mail, Telefon, Word - gebuendelt in einer digitalen Plattform
+fuer Ihre Praxis.
 
 - Bis zu 80 % Zeitersparnis
-  Strukturierte Formulare statt unleserlicher Faxe.
+  Strukturierte Formulare statt Zettel und Abtippen.
 
-- Schweizer Datenschutz, ohne Kompromisse
-  Hosting in der Schweiz, nDSG-konform, Art. 321 StGB.
+- Schweizer Datenschutz
+  Gehostet in der Schweiz. nDSG-konform. Art. 321 StGB.
 
-- In wenigen Minuten einsatzbereit
-  20 Fachrichtungen mit fertigen Vorlagen - wir helfen beim Setup.
+- In Minuten einsatzbereit
+  20 Fachrichtungen mit fertigen Vorlagen. In wenigen Minuten selbst
+  eingerichtet.
 
 Einfuehrungsrabatt:  WELCOME30  (30 % Rabatt auf die ersten 3 Monate)
 
 30 Tage kostenlos testen -> {{ cta_url }}
-Keine Kreditkarte erforderlich - monatlich kuendbar.
+30 Tage kostenlos - ohne Kreditkarte - monatlich kuendbar.
 
-Entwickelt mit Schweizer Arztpraxen. Keine Werbung, kein Tracking.
+Entwickelt mit Schweizer Arztpraxen.
 
 ---
 Pom Pom GmbH - Kalkbreitestrasse 6 - 8003 Zuerich - hello@meditransfer.ch
-Schweizer Hosting - nDSG-konform - Art. 321 StGB
+Made in Switzerland - nDSG-konform - Art. 321 StGB
 
 Impressum:    https://meditransfer.ch/impressum
 Datenschutz:  https://meditransfer.ch/datenschutz

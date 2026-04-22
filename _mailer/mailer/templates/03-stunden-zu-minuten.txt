@@ -1,28 +1,26 @@
-MEDITRANSFER  -  Stunden -> Minuten
+MEDITRANSFER  -  Zuweisungen. Digital.
 
-EIN RUHIGERER PRAXISALLTAG.
+ZUWEISUNGEN, EFFIZIENT BEARBEITET.
 
-Zuweisungen digital empfangen, sortieren und beantworten - so einfach
-wie E-Mail, aber strukturiert und sicher.
+Digital empfangen, strukturiert sortieren, sicher beantworten.
 
 HEUTE (zeitintensiv):
   . Zuweisungen abtippen
   . Manuelle Triage
   . Rueckfragen per Telefon
   . Bestaetigungen von Hand
-  . Status schwer nachvollziehbar
+  . Kein klarer Status
 
 MIT MEDITRANSFER (in Minuten erledigt):
   - Strukturierte Formulare
-  - Auto-Triage pro Fachrichtung
+  - Triage deutlich vereinfacht
   - Alles im Dashboard sortiert
   - Automatische Bestaetigungen
   - Status jederzeit sichtbar
 
-80 % Zeitersparnis bei der Erfassung eingehender Zuweisungen.
+80 % weniger Zeitaufwand pro eingehender Zuweisung.
 
-Testen Sie es unverbindlich - 30 Tage kostenlos. Einrichtung dauert
-weniger als eine Kaffeepause.
+Testen Sie es 30 Tage kostenlos. Einrichtung in wenigen Minuten.
 
 Code:  WELCOME30  -  30 % auf 3 Monate
 
@@ -31,7 +29,7 @@ Keine Kreditkarte - entwickelt mit Schweizer Arztpraxen.
 
 ---
 Pom Pom GmbH - Kalkbreitestrasse 6 - 8003 Zuerich - hello@meditransfer.ch
-Schweizer Hosting - nDSG-konform - Art. 321 StGB
+Made in Switzerland - nDSG-konform - Art. 321 StGB
 
 Impressum:    https://meditransfer.ch/impressum
 Datenschutz:  https://meditransfer.ch/datenschutz

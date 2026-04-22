@@ -1,41 +1,30 @@
-Guten Tag,
+Sehr geehrte Frau Dr. Muster
 
-mein Name ist Samuel und ich schreibe Ihnen aus Zuerich. Wir haben
-Meditransfer gebaut, weil uns zuweisende Aerzte und Praxisteams immer
-wieder denselben Satz gesagt haben:
+Zuweisungen kommen per Fax, E-Mail, Telefon und Word - selten am
+selben Ort, selten vollstaendig.
 
-  "Zuweisungen kommen per Fax, per Mail, per Telefon, als Word-Dokument
-  - Zettel stapeln sich, nichts ist am gleichen Ort, und wichtige
-  Anfragen gehen unter."
+Meditransfer buendelt alle Eingangskanaele in einer digitalen
+Plattform. Strukturierte Formulare pro Fachrichtung. Sortiertes
+Dashboard. Automatische Bestaetigungen. Gehostet in der Schweiz,
+nDSG-konform.
 
-Meditransfer buendelt all das an einem Ort. Ein strukturiertes,
-digitales Eingangsportal - zugeschnitten auf Ihre Fachrichtung.
-Zuweisende schicken die Anfrage ueber Ihr gebrandetes Formular, Sie
-sehen alles sortiert im Dashboard, und Bestaetigungen gehen automatisch
-raus. Schluss mit dem Hin und Her - mehr Zeit fuer Ihre Patientinnen
-und Patienten.
+30 Tage kostenlos testen - ohne Kreditkarte.
 
-Alles gehostet in der Schweiz, konform mit dem nDSG und Art. 321 StGB.
-Entwickelt mit Schweizer Arztpraxen, nicht in Silicon Valley.
+  Code WELCOME30 - 30 % Rabatt auf die ersten 3 Monate.
 
-30 Tage kostenlos testen. Mit dem Code WELCOME30 erhalten Sie zusaetz-
-lich 30 % Rabatt auf die ersten 3 Monate.
+Gerne zeige ich Ihnen das in 15 Minuten. Oder Sie richten sich Ihre
+Formulare direkt selbst ein - dauert nur wenige Minuten.
 
-Darf ich Ihnen das einmal persoenlich zeigen - oder moechten Sie es
-gleich selbst ausprobieren? Einfach antworten, oder hier starten:
-{{ cta_url }}
+Jetzt starten: {{ cta_url }}
 
-Herzlich,
+Freundliche Gruesse
 Samuel Beatty
 Gruender - Meditransfer
 hello@meditransfer.ch
 
-P.S. Kein Aufwand: Wir richten Ihre Formulare in der Teststellung
-gemeinsam ein - unverbindlich und kostenlos.
-
 ---
 Pom Pom GmbH - Kalkbreitestrasse 6 - 8003 Zuerich - hello@meditransfer.ch
-Schweizer Hosting - nDSG-konform - Art. 321 StGB
+Made in Switzerland - nDSG-konform - Art. 321 StGB
 
 Impressum:    https://meditransfer.ch/impressum
 Datenschutz:  https://meditransfer.ch/datenschutz

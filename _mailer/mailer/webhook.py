@@ -71,210 +71,591 @@ UNSUB_LANDING_HTML = """<!doctype html>
 
 DASHBOARD_INDEX_HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Mailer · campaigns</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Geist','-apple-system','Segoe UI','Helvetica','Arial','sans-serif'] },
+        colors: {
+          brand: { DEFAULT: '#165DFC', light: '#EFF4FF', dark: '#0A47C7' },
+          slate: { 950: '#0F172A' },
+        },
+      },
+    },
+  };
+</script>
 <style>
-  body { font: 14px/1.5 'Geist',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
-         margin: 0; padding: 32px; background: #F8FAFC; color: #334155; }
-  h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; color: #0F172A; letter-spacing: -.3px; }
-  .sub { color: #64748B; margin: 0 0 24px; font-size: 13px; }
-  table { width: 100%; max-width: 1100px; border-collapse: collapse; background: #fff;
-          border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.05); }
-  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #F1F5F9; font-size: 13px; }
-  th { background: #F8FAFC; font-weight: 600; color: #475569; font-size: 11px;
-       letter-spacing: 0.6px; text-transform: uppercase; }
-  tr:last-child td { border-bottom: 0; }
-  tr:hover td { background: #F8FAFC; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; color: #0F172A; }
-  td.muted { color: #94A3B8; }
-  a { color: #165DFC; text-decoration: none; font-weight: 500; }
-  a:hover { text-decoration: underline; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
-           font-size: 11px; font-weight: 500; background: #EFF4FF; color: #165DFC; }
-  .empty { padding: 48px 0; text-align: center; color: #94A3B8; }
-</style></head><body>
-<h1>Campaigns</h1>
-<p class="sub">{{ campaigns | length }} campaign{% if campaigns|length != 1 %}s{% endif %}.</p>
-{% if not campaigns %}
-  <div class="empty">No campaigns yet. Create one with <code>send_mailer.py campaign create</code>.</div>
-{% else %}
-<table>
-  <thead><tr>
-    <th>#</th><th>Name</th><th>Created</th><th>Templates (A/B/C)</th>
-    <th class="num">Recipients</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked</th><th class="num">Conv.</th><th class="num">Open%</th><th class="num">CTR</th><th class="num">Conv%</th>
-  </tr></thead>
-  <tbody>
-  {% for c in campaigns %}
-  <tr>
-    <td class="muted">{{ c.id }}</td>
-    <td><a href="/dashboard/c/{{ c.id }}">{{ c.name }}</a></td>
-    <td class="muted">{{ c.created_at[:10] }}</td>
-    <td class="muted" style="font-size:12px;">{{ c.template_a }} / {{ c.template_b }} / {{ c.template_c }}</td>
-    <td class="num">{{ c.recipients }}</td>
-    <td class="num">{{ c.sent }}</td>
-    <td class="num">{{ c.opened }}</td>
-    <td class="num">{{ c.clicked }}</td>
-    <td class="num">{{ c.converted }}</td>
-    <td class="num">{% if c.sent %}{{ "%.1f"|format(100.0 * c.opened / c.sent) }}%{% else %}–{% endif %}</td>
-    <td class="num">{% if c.sent %}{{ "%.1f"|format(100.0 * c.clicked / c.sent) }}%{% else %}–{% endif %}</td>
-    <td class="num">{% if c.sent %}{{ "%.1f"|format(100.0 * c.converted / c.sent) }}%{% else %}–{% endif %}</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% endif %}
+  body { font-family: 'Geist', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .kpi-value { font-variant-numeric: tabular-nums; }
+</style>
+</head><body class="bg-slate-50 text-slate-700 min-h-screen">
+
+<header class="max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+  <h1 class="text-2xl font-semibold text-slate-950 tracking-tight">Campaigns</h1>
+  <p class="text-slate-500 text-sm mt-1">
+    {{ summary.campaigns }} visible campaign{% if summary.campaigns != 1 %}s{% endif %}
+    &middot; test &amp; preview campaigns hidden
+  </p>
+</header>
+
+<!-- All-time KPI strip -->
+<section class="max-w-7xl mx-auto px-4 sm:px-8 pb-4">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    {% set open_rate = (100.0 * summary.opened / summary.sent) if summary.sent else 0 %}
+    {% set ctr      = (100.0 * summary.clicked / summary.sent) if summary.sent else 0 %}
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Total sent</div>
+      <div class="kpi-value text-3xl font-semibold text-slate-950 mt-1">{{ summary.sent }}</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Delivered</div>
+      <div class="kpi-value text-3xl font-semibold text-slate-950 mt-1">{{ summary.delivered }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">
+        {% if summary.sent %}{{ "%.1f"|format(100.0 * summary.delivered / summary.sent) }}% of sent{% else %}–{% endif %}
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Open rate</div>
+      <div class="kpi-value text-3xl font-semibold text-brand mt-1">{{ "%.1f"|format(open_rate) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ summary.opened }} opens</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Real CTR</div>
+      <div class="kpi-value text-3xl font-semibold text-brand mt-1">{{ "%.1f"|format(ctr) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ summary.clicked }} human clicks</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60 col-span-2 sm:col-span-1">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Opt-outs</div>
+      <div class="kpi-value text-3xl font-semibold text-slate-950 mt-1">{{ summary.opt_outs }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">global suppressions</div>
+    </div>
+  </div>
+</section>
+
+<!-- Campaign cards -->
+<section class="max-w-7xl mx-auto px-4 sm:px-8 pb-12">
+  {% if not campaigns %}
+    <div class="bg-white rounded-xl p-12 text-center text-slate-400 shadow-sm ring-1 ring-slate-200/60">
+      No campaigns yet. Create one with
+      <code class="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">send_mailer.py campaign create</code>.
+    </div>
+  {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for c in campaigns %}
+      {% set open_rate = (100.0 * c.opened / c.sent) if c.sent else 0 %}
+      {% set ctr       = (100.0 * c.clicked / c.sent) if c.sent else 0 %}
+      <a href="/dashboard/c/{{ c.id }}" class="block bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60 hover:ring-brand/30 hover:shadow-md transition">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-brand">Campaign #{{ c.id }}</div>
+            <div class="text-base font-semibold text-slate-950 mt-0.5 truncate">{{ c.name }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">{{ c.created_at[:10] }}</div>
+          </div>
+          <div class="flex flex-col items-end gap-1 shrink-0">
+            <span class="inline-flex items-center gap-1 text-[10px] font-mono text-slate-500">
+              <span class="inline-block w-2 h-2 rounded-full bg-brand"></span>{{ c.template_a }}
+            </span>
+            <span class="inline-flex items-center gap-1 text-[10px] font-mono text-slate-500">
+              <span class="inline-block w-2 h-2 rounded-full bg-fuchsia-500"></span>{{ c.template_b }}
+            </span>
+            <span class="inline-flex items-center gap-1 text-[10px] font-mono text-slate-500">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>{{ c.template_c }}
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mt-5">
+          <div>
+            <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Sent</div>
+            <div class="kpi-value text-xl font-semibold text-slate-950 mt-0.5">{{ c.sent }}</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Open</div>
+            <div class="kpi-value text-xl font-semibold text-slate-950 mt-0.5">{{ "%.0f"|format(open_rate) }}%</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">CTR</div>
+            <div class="kpi-value text-xl font-semibold text-slate-950 mt-0.5">{{ "%.1f"|format(ctr) }}%</div>
+          </div>
+        </div>
+
+        <div class="mt-4 h-10">
+          <canvas data-sparkline='{{ c.sparkline | tojson }}' class="w-full h-full"></canvas>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1">Opens · last 7 days</div>
+      </a>
+    {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<script>
+  // Render sparkline on each campaign card
+  document.querySelectorAll('canvas[data-sparkline]').forEach(el => {
+    const data = JSON.parse(el.dataset.sparkline || '[]');
+    new Chart(el, {
+      type: 'line',
+      data: {
+        labels: data.map((_, i) => i),
+        datasets: [{
+          data,
+          borderColor: '#165DFC',
+          backgroundColor: 'rgba(22, 93, 252, 0.08)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false, beginAtZero: true },
+        },
+        animation: false,
+      },
+    });
+  });
+</script>
+
 </body></html>
 """
 
 
 DASHBOARD_CAMPAIGN_HTML = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>{{ campaign.name }} · mailer</title>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>{{ campaign.name }} · mailer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['Geist','-apple-system','Segoe UI','Helvetica','Arial','sans-serif'],
+        mono: ['Geist Mono','Courier New','monospace'],
+      },
+      colors: {
+        brand: { DEFAULT: '#165DFC', light: '#EFF4FF', dark: '#0A47C7' },
+      },
+    }},
+  };
+</script>
 <style>
-  body { font: 14px/1.5 'Geist',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
-         margin: 0; padding: 32px; background: #F8FAFC; color: #334155; }
-  .crumbs { font-size: 12px; color: #64748B; margin-bottom: 8px; }
-  .crumbs a { color: #165DFC; text-decoration: none; }
-  h1 { margin: 0 0 4px; font-size: 26px; font-weight: 600; color: #0F172A; letter-spacing: -.3px; }
-  .sub { color: #64748B; margin: 0 0 28px; font-size: 13px; }
-  h2 { margin: 32px 0 12px; font-size: 14px; font-weight: 600; color: #0F172A;
-       letter-spacing: 0.6px; text-transform: uppercase; }
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-           max-width: 1100px; }
-  .card { background: #fff; border-radius: 10px; padding: 20px;
-          box-shadow: 0 1px 3px rgba(15,23,42,0.05); }
-  .card .label { font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
-                 text-transform: uppercase; color: #165DFC; margin-bottom: 8px; }
-  .card .template { font-size: 12px; color: #94A3B8; margin-bottom: 16px;
-                    font-family: 'Geist Mono','Courier New',monospace; }
-  .card .row { display: flex; justify-content: space-between; padding: 4px 0;
-               font-size: 13px; }
-  .card .row .k { color: #64748B; }
-  .card .row .v { font-weight: 600; color: #0F172A; font-variant-numeric: tabular-nums; }
-  .card .pct { background: #EFF4FF; padding: 2px 8px; border-radius: 999px;
-               font-size: 11px; color: #165DFC; margin-left: 6px; }
-  table { width: 100%; max-width: 1100px; border-collapse: collapse; background: #fff;
-          border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.05); }
-  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #F1F5F9;
-           font-size: 13px; }
-  th { background: #F8FAFC; font-weight: 600; color: #475569; font-size: 11px;
-       letter-spacing: 0.6px; text-transform: uppercase; }
-  tr:last-child td { border-bottom: 0; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; color: #0F172A; }
-  td.muted { color: #94A3B8; }
-  td.email { font-family: 'Geist Mono','Courier New',monospace; font-size: 12px; }
-  td.url { font-family: 'Geist Mono','Courier New',monospace; font-size: 11px;
-           color: #475569; max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px;
-          font-size: 11px; font-weight: 600; }
-  .pill.A { background: #EFF4FF; color: #165DFC; }
-  .pill.B { background: #FDF4FF; color: #A21CAF; }
-  .pill.C { background: #F0FDF4; color: #15803D; }
-  .pill.sent { background: #F0FDF4; color: #15803D; }
-  .pill.failed { background: #FEF2F2; color: #B91C1C; }
-  .pill.dry_run { background: #FEF3C7; color: #92400E; }
-  .pill.pending { background: #F1F5F9; color: #64748B; }
-  .pill.opt { background: #FEF2F2; color: #B91C1C; }
-  .pill.bounce { background: #FFEDD5; color: #C2410C; }
-  .empty { padding: 48px 0; text-align: center; color: #94A3B8; }
-</style></head><body>
-<div class="crumbs"><a href="/dashboard">Campaigns</a> &rsaquo; {{ campaign.name }}</div>
-<h1>{{ campaign.name }}</h1>
-<p class="sub">Created {{ campaign.created_at }} &middot; {{ recipients|length }} recipient{% if recipients|length != 1 %}s{% endif %}.</p>
+  body { font-family: 'Geist', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .kpi-value { font-variant-numeric: tabular-nums; }
+  [x-cloak] { display: none !important; }
+  .chart-wrap { position: relative; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-700 min-h-screen" x-data="{ tab: 'overview', variantFilter: 'all' }">
 
-<div class="cards">
-  {% for v in variants %}
-  {% set s = stats.get(v, {}) %}
-  {% set total = (s.get('total') or 0) | int %}
-  {% set sent = (s.get('sent') or 0) | int %}
-  {% set opened = (s.get('opened') or 0) | int %}
-  {% set clicked = (s.get('clicked') or 0) | int %}
-  {% set converted = (s.get('converted') or 0) | int %}
-  {% set value = (s.get('conversion_value_cents') or 0) | int %}
-  {% set bounced = (s.get('bounced') or 0) | int %}
-  {% set unsub = (s.get('unsubscribed') or 0) | int %}
-  {% set failed = (s.get('failed') or 0) | int %}
-  <div class="card">
-    <div class="label">Variant {{ v }}</div>
-    <div class="template">{{ campaign['template_' ~ v.lower()] }}</div>
-    <div class="row"><span class="k">Recipients</span><span class="v">{{ total }}</span></div>
-    <div class="row"><span class="k">Sent</span><span class="v">{{ sent }}</span></div>
-    <div class="row"><span class="k">Opened</span><span class="v">{{ opened }}{% if sent %}<span class="pct">{{ "%.1f"|format(100.0 * opened / sent) }}%</span>{% endif %}</span></div>
-    <div class="row"><span class="k">Clicked</span><span class="v">{{ clicked }}{% if sent %}<span class="pct">{{ "%.1f"|format(100.0 * clicked / sent) }}%</span>{% endif %}</span></div>
-    <div class="row"><span class="k">Converted</span><span class="v">{{ converted }}{% if sent %}<span class="pct">{{ "%.1f"|format(100.0 * converted / sent) }}%</span>{% endif %}</span></div>
-    {% if value %}<div class="row"><span class="k">Revenue</span><span class="v">CHF {{ "%.2f"|format(value / 100.0) }}</span></div>{% endif %}
-    <div class="row"><span class="k">Bounced</span><span class="v">{{ bounced }}</span></div>
-    <div class="row"><span class="k">Unsubscribed</span><span class="v">{{ unsub }}</span></div>
-    {% if failed %}<div class="row"><span class="k">Failed</span><span class="v">{{ failed }}</span></div>{% endif %}
+<!-- Breadcrumb + title -->
+<header class="max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+  <div class="text-xs text-slate-500 mb-2">
+    <a href="/dashboard" class="text-brand hover:underline">Campaigns</a>
+    <span class="mx-1.5 text-slate-300">&rsaquo;</span>
+    <span class="text-slate-500">{{ campaign.name }}</span>
   </div>
-  {% endfor %}
-</div>
+  <h1 class="text-2xl md:text-3xl font-semibold text-slate-950 tracking-tight break-words">{{ campaign.name }}</h1>
+  <p class="text-slate-500 text-sm mt-1">
+    Created {{ campaign.created_at[:16].replace('T',' ') }} &middot; {{ recipients|length }} recipient{% if recipients|length != 1 %}s{% endif %}
+    {% if campaign.notes %}<br><span class="italic text-slate-400">{{ campaign.notes }}</span>{% endif %}
+  </p>
+</header>
 
-<h2>Recent conversions</h2>
-{% if not conversions_recent %}
-  <div class="empty" style="background:#fff; border-radius:10px;">No conversions tracked yet.</div>
-{% else %}
-<table>
-  <thead><tr><th>When</th><th>Variant</th><th>Email</th><th>Type</th><th class="num">Value</th><th>UTM content</th></tr></thead>
-  <tbody>
-  {% for c in conversions_recent %}
-  <tr>
-    <td class="muted" style="font-size:11px;">{{ c.received_at[:16].replace('T',' ') }}</td>
-    <td>{% if c.variant %}<span class="pill {{ c.variant }}">{{ c.variant }}</span>{% else %}<span class="muted">–</span>{% endif %}</td>
-    <td class="email">{{ c.email or '–' }}</td>
-    <td>{{ c.conversion_type or '–' }}</td>
-    <td class="num">{% if c.value_cents %}CHF {{ "%.2f"|format(c.value_cents / 100.0) }}{% else %}–{% endif %}</td>
-    <td class="muted" style="font-size:11px;">{{ c.utm_content or '–' }}</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<!-- Hero KPIs -->
+<section class="max-w-7xl mx-auto px-4 sm:px-8 pb-3">
+  {% set tot_sent = funnel.sent %}
+  {% set tot_delivered = funnel.delivered %}
+  {% set tot_opened = funnel.opened %}
+  {% set tot_clicked = funnel.clicked %}
+  {% set tot_converted = funnel.converted %}
+  {% set tot_bounced = tot_sent - tot_delivered %}
+  {% set bounce_rate = (100.0 * tot_bounced / tot_sent) if tot_sent else 0 %}
+  {% set unsub_total = 0 %}
+  {% for v in variants %}{% set unsub_total = unsub_total + (stats.get(v, {}).get('unsubscribed') or 0) | int %}{% endfor %}
+  {% set unsub_rate = (100.0 * unsub_total / tot_sent) if tot_sent else 0 %}
+  <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Sent</div>
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold text-slate-950 mt-1">{{ tot_sent }}</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Delivered</div>
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold text-slate-950 mt-1">{{ tot_delivered }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{% if tot_sent %}{{ "%.1f"|format(100.0 * tot_delivered / tot_sent) }}%{% else %}–{% endif %}</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Opened</div>
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold text-brand mt-1">{{ "%.1f"|format((100.0 * tot_opened / tot_sent) if tot_sent else 0) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ tot_opened }} opens</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Clicked</div>
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold text-brand mt-1">{{ "%.1f"|format((100.0 * tot_clicked / tot_sent) if tot_sent else 0) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ tot_clicked }} human</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Converted</div>
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold text-emerald-600 mt-1">{{ tot_converted }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{% if tot_sent %}{{ "%.1f"|format(100.0 * tot_converted / tot_sent) }}%{% else %}–{% endif %}</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Unsub</div>
+      {% set unsub_colour = 'text-slate-950' if unsub_rate < 3 else ('text-amber-600' if unsub_rate < 5 else 'text-rose-600') %}
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold {{ unsub_colour }} mt-1">{{ "%.1f"|format(unsub_rate) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ unsub_total }} opt-outs</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-slate-200/60">
+      <div class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Bounced</div>
+      {% set bounce_colour = 'text-slate-950' if bounce_rate < 3 else ('text-amber-600' if bounce_rate < 5 else 'text-rose-600') %}
+      <div class="kpi-value text-2xl sm:text-3xl font-semibold {{ bounce_colour }} mt-1">{{ "%.1f"|format(bounce_rate) }}%</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">{{ tot_bounced }} of {{ tot_sent }}</div>
+    </div>
+  </div>
+</section>
+
+<!-- Scanner noise callout -->
+{% set scanner_total = 0 %}
+{% for v in variants %}{% set scanner_total = scanner_total + (stats.get(v, {}).get('clicked_scanner') or 0) | int %}{% endfor %}
+{% if scanner_total %}
+<section class="max-w-7xl mx-auto px-4 sm:px-8 pb-3">
+  <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-900 flex items-start gap-2">
+    <span class="font-semibold">⚠</span>
+    <span>Filtered <strong>{{ scanner_total }}</strong> scanner clicks (corporate email security gateways — Proofpoint, MS Defender, Mimecast — walk every link in incoming mail). Real CTR above excludes these.</span>
+  </div>
+</section>
 {% endif %}
 
-<h2>Top clicked links</h2>
-{% if not top_links %}
-  <div class="empty" style="background:#fff; border-radius:10px;">No clicks yet.</div>
-{% else %}
-<table>
-  <thead><tr><th>URL</th><th class="num">Unique clickers</th><th class="num">Total clicks</th></tr></thead>
-  <tbody>
-  {% for link in top_links %}
-  <tr>
-    <td class="url" title="{{ link.url }}"><a href="{{ link.url }}">{{ link.url }}</a></td>
-    <td class="num">{{ link.unique_clickers }}</td>
-    <td class="num">{{ link.total_clicks }}</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% endif %}
+<!-- Tabs -->
+<nav class="max-w-7xl mx-auto px-4 sm:px-8 border-b border-slate-200 mt-2">
+  <div class="flex gap-0 text-sm -mb-px">
+    <button @click="tab = 'overview'" :class="tab === 'overview' ? 'text-brand border-brand' : 'text-slate-500 border-transparent hover:text-slate-900'" class="py-3 px-4 border-b-2 font-medium transition cursor-pointer">Overview</button>
+    <button @click="tab = 'events'" :class="tab === 'events' ? 'text-brand border-brand' : 'text-slate-500 border-transparent hover:text-slate-900'" class="py-3 px-4 border-b-2 font-medium transition cursor-pointer">Events</button>
+    <button @click="tab = 'recipients'" :class="tab === 'recipients' ? 'text-brand border-brand' : 'text-slate-500 border-transparent hover:text-slate-900'" class="py-3 px-4 border-b-2 font-medium transition cursor-pointer">Recipients</button>
+  </div>
+</nav>
 
-<h2>Recipients</h2>
-<table>
-  <thead><tr>
-    <th>Variant</th><th>Email</th><th>Section</th><th>Status</th>
-    <th class="num">Sent</th><th class="num">Opens</th><th class="num">Clicks</th>
-    <th class="num">First open</th><th>Last click URL</th><th>Flags</th>
-  </tr></thead>
-  <tbody>
-  {% for r in recipients %}
-  <tr>
-    <td><span class="pill {{ r.variant }}">{{ r.variant }}</span></td>
-    <td class="email">{{ r.email }}</td>
-    <td class="muted">{{ r.section or '–' }}</td>
-    <td>{% if r.status %}<span class="pill {{ r.status }}">{{ r.status }}</span>{% else %}<span class="pill pending">pending</span>{% endif %}</td>
-    <td class="muted" style="font-size:11px;">{{ (r.sent_at or '')[:16].replace('T',' ') or '–' }}</td>
-    <td class="num">{{ r.open_count or 0 }}</td>
-    <td class="num">{{ r.click_count or 0 }}</td>
-    <td class="muted" style="font-size:11px;">{{ (r.first_open or '')[:16].replace('T',' ') or '–' }}</td>
-    <td class="url" title="{{ r.last_click_url or '' }}">{{ r.last_click_url or '–' }}</td>
-    <td>
-      {% if r.opted_out %}<span class="pill opt">unsub</span>{% endif %}
-      {% if r.bounce_count and r.bounce_count > 0 %}<span class="pill bounce">bounce</span>{% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<!-- OVERVIEW TAB -->
+<section x-show="tab === 'overview'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-5">
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Funnel -->
+    <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60">
+      <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Funnel</h2>
+      <p class="text-xs text-slate-400 mt-0.5 mb-4">From send to conversion · scanner clicks excluded.</p>
+      <div class="chart-wrap" style="height:220px;"><canvas id="funnel-chart"></canvas></div>
+    </div>
+    <!-- Variant comparison -->
+    <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60">
+      <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Variant comparison</h2>
+      <p class="text-xs text-slate-400 mt-0.5 mb-4">Open %, CTR, Unsub %, Bounce % by template.</p>
+      <div class="chart-wrap" style="height:220px;"><canvas id="variant-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Per-variant cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {% for v in variants %}
+      {% set s = stats.get(v, {}) %}
+      {% set total = (s.get('total') or 0) | int %}
+      {% set sent = (s.get('sent') or 0) | int %}
+      {% set opened = (s.get('opened') or 0) | int %}
+      {% set clicked = (s.get('clicked') or 0) | int %}
+      {% set clicked_scanner = (s.get('clicked_scanner') or 0) | int %}
+      {% set converted = (s.get('converted') or 0) | int %}
+      {% set value = (s.get('conversion_value_cents') or 0) | int %}
+      {% set bounced = (s.get('bounced') or 0) | int %}
+      {% set unsub = (s.get('unsubscribed') or 0) | int %}
+      {% set failed = (s.get('failed') or 0) | int %}
+      {% set dot = 'bg-brand' if v == 'A' else ('bg-fuchsia-500' if v == 'B' else 'bg-emerald-500') %}
+      <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full {{ dot }}"></span>
+          <span class="text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-400">Variant {{ v }}</span>
+        </div>
+        <div class="font-mono text-xs text-slate-400 mt-1 break-all">{{ campaign['template_' ~ v.lower()] }}</div>
+        <dl class="mt-4 divide-y divide-slate-100 text-sm">
+          <div class="flex justify-between py-1.5"><dt class="text-slate-500">Recipients</dt><dd class="font-semibold text-slate-950 kpi-value">{{ total }}</dd></div>
+          <div class="flex justify-between py-1.5"><dt class="text-slate-500">Sent</dt><dd class="font-semibold text-slate-950 kpi-value">{{ sent }}</dd></div>
+          <div class="flex justify-between py-1.5 items-center"><dt class="text-slate-500">Opened</dt><dd class="font-semibold text-slate-950 kpi-value">{{ opened }}{% if sent %} <span class="text-[10px] font-medium text-brand bg-brand-light px-2 py-0.5 rounded-full ml-1">{{ "%.1f"|format(100.0 * opened / sent) }}%</span>{% endif %}</dd></div>
+          <div class="flex justify-between py-1.5 items-center"><dt class="text-slate-500">Clicked</dt><dd class="font-semibold text-slate-950 kpi-value">{{ clicked }}{% if sent %} <span class="text-[10px] font-medium text-brand bg-brand-light px-2 py-0.5 rounded-full ml-1">{{ "%.1f"|format(100.0 * clicked / sent) }}%</span>{% endif %}</dd></div>
+          {% if clicked_scanner %}<div class="flex justify-between py-1.5 items-center"><dt class="text-slate-400">Scanner clicks</dt><dd class="font-medium text-slate-400 kpi-value">{{ clicked_scanner }} <span class="text-[10px] font-medium text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full ml-1">filtered</span></dd></div>{% endif %}
+          <div class="flex justify-between py-1.5 items-center"><dt class="text-slate-500">Converted</dt><dd class="font-semibold text-slate-950 kpi-value">{{ converted }}{% if sent %} <span class="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full ml-1">{{ "%.1f"|format(100.0 * converted / sent) }}%</span>{% endif %}</dd></div>
+          {% if value %}<div class="flex justify-between py-1.5"><dt class="text-slate-500">Revenue</dt><dd class="font-semibold text-slate-950 kpi-value">CHF {{ "%.2f"|format(value / 100.0) }}</dd></div>{% endif %}
+          <div class="flex justify-between py-1.5"><dt class="text-slate-500">Bounced</dt><dd class="font-semibold text-slate-950 kpi-value">{{ bounced }}</dd></div>
+          <div class="flex justify-between py-1.5"><dt class="text-slate-500">Unsubscribed</dt><dd class="font-semibold text-slate-950 kpi-value">{{ unsub }}</dd></div>
+          {% if failed %}<div class="flex justify-between py-1.5"><dt class="text-slate-500">Failed</dt><dd class="font-semibold text-rose-600 kpi-value">{{ failed }}</dd></div>{% endif %}
+        </dl>
+      </div>
+    {% endfor %}
+  </div>
+
+</section>
+
+<!-- EVENTS TAB -->
+<section x-show="tab === 'events'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-5">
+
+  <!-- Timeline -->
+  <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60">
+    <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Engagement timeline</h2>
+    <p class="text-xs text-slate-400 mt-0.5 mb-4">Opens and human clicks per hour since the first send.</p>
+    <div class="chart-wrap" style="height:260px;"><canvas id="timeline-chart"></canvas></div>
+  </div>
+
+  <!-- Top clicked links -->
+  <div class="bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200/60">
+    <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Top clicked links</h2>
+    <p class="text-xs text-slate-400 mt-0.5 mb-4">Footer links and scanner-flagged recipients excluded.</p>
+    {% if not top_links %}
+      <div class="text-sm text-slate-400 py-4">No human clicks yet.</div>
+    {% else %}
+      {% set max_clicks = top_links[0].total_clicks or 1 %}
+      <div class="space-y-2">
+      {% for link in top_links %}
+        <div>
+          <div class="flex items-center justify-between gap-3 text-xs">
+            <a href="{{ link.url }}" class="font-mono text-slate-600 hover:text-brand truncate" title="{{ link.url }}">{{ link.url }}</a>
+            <div class="text-slate-500 whitespace-nowrap shrink-0">
+              <span class="font-semibold text-slate-950 kpi-value">{{ link.unique_clickers }}</span> clickers
+              <span class="mx-1.5 text-slate-300">·</span>
+              <span class="kpi-value">{{ link.total_clicks }}</span> clicks
+            </div>
+          </div>
+          <div class="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full bg-brand rounded-full" style="width: {{ (100.0 * link.total_clicks / max_clicks) | round(1) }}%"></div>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent conversions -->
+  <div class="bg-white rounded-xl shadow-sm ring-1 ring-slate-200/60 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Recent conversions</h2>
+    </div>
+    {% if not conversions_recent %}
+      <div class="p-8 text-center text-sm text-slate-400">No conversions tracked yet.</div>
+    {% else %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50/80 text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-500">
+          <tr>
+            <th class="text-left px-5 py-3">When</th>
+            <th class="text-left px-5 py-3">Variant</th>
+            <th class="text-left px-5 py-3">Email</th>
+            <th class="text-left px-5 py-3">Type</th>
+            <th class="text-right px-5 py-3">Value</th>
+            <th class="text-left px-5 py-3">UTM content</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for c in conversions_recent %}
+          <tr>
+            <td class="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{{ c.received_at[:16].replace('T',' ') }}</td>
+            <td class="px-5 py-3">{% if c.variant %}{% set dot = 'bg-brand' if c.variant == 'A' else ('bg-fuchsia-500' if c.variant == 'B' else 'bg-emerald-500') %}<span class="inline-flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full {{ dot }}"></span>{{ c.variant }}</span>{% else %}<span class="text-slate-300">–</span>{% endif %}</td>
+            <td class="px-5 py-3 font-mono text-xs">{{ c.email or '–' }}</td>
+            <td class="px-5 py-3 text-xs">{{ c.conversion_type or '–' }}</td>
+            <td class="px-5 py-3 text-right kpi-value whitespace-nowrap">{% if c.value_cents %}CHF {{ "%.2f"|format(c.value_cents / 100.0) }}{% else %}<span class="text-slate-300">–</span>{% endif %}</td>
+            <td class="px-5 py-3 text-xs text-slate-400 font-mono">{{ c.utm_content or '–' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+</section>
+
+<!-- RECIPIENTS TAB -->
+<section x-show="tab === 'recipients'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-8 py-6">
+  <div class="bg-white rounded-xl shadow-sm ring-1 ring-slate-200/60 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+      <h2 class="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500">Recipients</h2>
+      <div class="flex gap-1 ml-auto text-xs">
+        <button @click="variantFilter='all'" :class="variantFilter==='all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1 rounded-full font-medium transition cursor-pointer">All</button>
+        <button @click="variantFilter='A'" :class="variantFilter==='A' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1 rounded-full font-medium transition cursor-pointer">A</button>
+        <button @click="variantFilter='B'" :class="variantFilter==='B' ? 'bg-fuchsia-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1 rounded-full font-medium transition cursor-pointer">B</button>
+        <button @click="variantFilter='C'" :class="variantFilter==='C' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1 rounded-full font-medium transition cursor-pointer">C</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50/80 text-[10px] font-semibold tracking-[0.1em] uppercase text-slate-500">
+          <tr>
+            <th class="text-left px-5 py-3">Variant</th>
+            <th class="text-left px-5 py-3">Email</th>
+            <th class="text-left px-5 py-3">Section</th>
+            <th class="text-left px-5 py-3">Status</th>
+            <th class="text-left px-5 py-3 whitespace-nowrap">Sent</th>
+            <th class="text-right px-5 py-3">Opens</th>
+            <th class="text-right px-5 py-3">Clicks</th>
+            <th class="text-left px-5 py-3 whitespace-nowrap">First open</th>
+            <th class="text-left px-5 py-3">Flags</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in recipients %}
+          {% set dot = 'bg-brand' if r.variant == 'A' else ('bg-fuchsia-500' if r.variant == 'B' else 'bg-emerald-500') %}
+          <tr x-show="variantFilter==='all' || variantFilter==='{{ r.variant }}'">
+            <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs font-medium"><span class="inline-block w-2 h-2 rounded-full {{ dot }}"></span>{{ r.variant }}</span></td>
+            <td class="px-5 py-3 font-mono text-xs">{{ r.email }}</td>
+            <td class="px-5 py-3 text-xs text-slate-500">{{ r.section or '–' }}</td>
+            <td class="px-5 py-3 text-xs">
+              {% if r.status == 'sent' %}<span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium">sent</span>
+              {% elif r.status == 'failed' %}<span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[11px] font-medium">failed</span>
+              {% elif r.status == 'dry_run' %}<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[11px] font-medium">dry</span>
+              {% else %}<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[11px] font-medium">pending</span>{% endif %}
+            </td>
+            <td class="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{{ (r.sent_at or '')[:16].replace('T',' ') or '–' }}</td>
+            <td class="px-5 py-3 text-right kpi-value">{{ r.open_count or 0 }}</td>
+            <td class="px-5 py-3 text-right kpi-value">{{ r.click_count or 0 }}</td>
+            <td class="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{{ (r.first_open or '')[:16].replace('T',' ') or '–' }}</td>
+            <td class="px-5 py-3 text-xs">
+              {% if r.opted_out %}<span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[11px] font-medium">unsub</span>{% endif %}
+              {% if r.bounce_count and r.bounce_count > 0 %}<span class="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full text-[11px] font-medium ml-1">bounce</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Chart.js initialisation -->
+<script>
+  const chartData = {
+    funnel: {{ funnel | tojson }},
+    stats: {{ stats | tojson }},
+    timeseries: {{ timeseries | tojson }},
+  };
+
+  const GRID = 'rgba(148,163,184,0.15)';
+  const AXIS = '#64748B';
+  const LABEL_FONT = { family: "Geist, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif", size: 11 };
+
+  // ---- Funnel (horizontal bar) ----
+  const fc = document.getElementById('funnel-chart');
+  if (fc) {
+    const f = chartData.funnel;
+    const total = f.sent || 1;
+    new Chart(fc, {
+      type: 'bar',
+      data: {
+        labels: ['Sent', 'Delivered', 'Opened', 'Clicked', 'Converted'],
+        datasets: [{
+          data: [f.sent, f.delivered, f.opened, f.clicked, f.converted],
+          backgroundColor: ['#0F172A','#165DFC','#3B82F6','#60A5FA','#10B981'],
+          borderRadius: 6,
+          maxBarThickness: 30,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.x} (${((ctx.parsed.x/total)*100).toFixed(1)}% of sent)`,
+            },
+          },
+        },
+        scales: {
+          x: { grid: { color: GRID, drawBorder: false }, ticks: { color: AXIS, font: LABEL_FONT }, beginAtZero: true },
+          y: { grid: { display: false, drawBorder: false }, ticks: { color: '#0F172A', font: { ...LABEL_FONT, weight: 500 }}},
+        },
+      },
+    });
+  }
+
+  // ---- Variant comparison (grouped bar) ----
+  const vc = document.getElementById('variant-chart');
+  if (vc) {
+    const pct = (s, key) => (s && s.sent ? +(100 * (s[key] || 0) / s.sent).toFixed(1) : 0);
+    const A = chartData.stats.A || {};
+    const B = chartData.stats.B || {};
+    const C = chartData.stats.C || {};
+    new Chart(vc, {
+      type: 'bar',
+      data: {
+        labels: ['Open %', 'CTR %', 'Unsub %', 'Bounce %'],
+        datasets: [
+          { label: 'A · ' + '{{ campaign.template_a }}', data: [pct(A,'opened'), pct(A,'clicked'), pct(A,'unsubscribed'), pct(A,'bounced')],
+            backgroundColor: '#165DFC', borderRadius: 4, maxBarThickness: 28 },
+          { label: 'B · ' + '{{ campaign.template_b }}', data: [pct(B,'opened'), pct(B,'clicked'), pct(B,'unsubscribed'), pct(B,'bounced')],
+            backgroundColor: '#A21CAF', borderRadius: 4, maxBarThickness: 28 },
+          { label: 'C · ' + '{{ campaign.template_c }}', data: [pct(C,'opened'), pct(C,'clicked'), pct(C,'unsubscribed'), pct(C,'bounced')],
+            backgroundColor: '#10B981', borderRadius: 4, maxBarThickness: 28 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#475569', font: LABEL_FONT, padding: 10, boxWidth: 10, boxHeight: 10 }},
+          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label.split(' · ')[0]}: ${ctx.parsed.y}%` }},
+        },
+        scales: {
+          x: { grid: { display: false, drawBorder: false }, ticks: { color: AXIS, font: LABEL_FONT }},
+          y: { grid: { color: GRID, drawBorder: false }, ticks: { color: AXIS, font: LABEL_FONT, callback: v => v + '%' }, beginAtZero: true },
+        },
+      },
+    });
+  }
+
+  // ---- Timeline (line) ----
+  const tc = document.getElementById('timeline-chart');
+  if (tc) {
+    const ts = chartData.timeseries;
+    if (ts.length === 0) {
+      tc.parentElement.innerHTML = '<div class="text-sm text-slate-400 py-8 text-center">No events yet.</div>';
+    } else {
+      const labels = ts.map(r => {
+        // r.t = "YYYY-MM-DDTHH" → show "MMM DD · HH:00"
+        const [date, h] = r.t.split('T');
+        const d = new Date(date + 'T' + h + ':00:00');
+        return d.toLocaleString('en-GB', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      });
+      new Chart(tc, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Opens', data: ts.map(r => r.opens), borderColor: '#165DFC',
+              backgroundColor: 'rgba(22,93,252,0.08)', fill: true, tension: 0.3, pointRadius: 2, pointHoverRadius: 4 },
+            { label: 'Clicks (human)', data: ts.map(r => r.clicks), borderColor: '#10B981',
+              backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.3, pointRadius: 2, pointHoverRadius: 4 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#475569', font: LABEL_FONT, padding: 10, boxWidth: 10, boxHeight: 10 }},
+          },
+          scales: {
+            x: { grid: { display: false, drawBorder: false }, ticks: { color: AXIS, font: LABEL_FONT, maxTicksLimit: 8 }},
+            y: { grid: { color: GRID, drawBorder: false }, ticks: { color: AXIS, font: LABEL_FONT, precision: 0 }, beginAtZero: true },
+          },
+        },
+      });
+    }
+  }
+</script>
 
 </body></html>
 """
@@ -327,10 +708,8 @@ CANVAS_ITEMS = [
      "sub": "Founder letter · plain-text feel", "tag": "Recommended for cold", "rec": True},
     {"stem": "02-hero-cta", "num": "02", "label": "Hero + CTA",
      "sub": "Classic branded, closest to homepage", "tag": "Brand awareness", "rec": False},
-    {"stem": "03-stunden-zu-minuten", "num": "03", "label": "Stunden → Minuten",
+    {"stem": "03-stunden-zu-minuten", "num": "03", "label": "Vorher / Nachher",
      "sub": "Heute vs. mit Meditransfer · positive framing", "tag": "Benefits-forward", "rec": False},
-    {"stem": "04-bento-benefits", "num": "04", "label": "Bento Benefits",
-     "sub": "4-card grid · nDSG & Swiss angle", "tag": "Most visual", "rec": False},
 ]
 
 
@@ -509,8 +888,8 @@ def create_app(config: Config) -> Flask:
     @app.route("/dashboard", methods=["GET"])
     def dashboard_index() -> Any:
         with db.connect(config.db_path) as conn:
-            campaigns = conn.execute(
-                """SELECT c.id, c.name, c.created_at, c.template_a, c.template_b, c.template_c,
+            rows = conn.execute(
+                f"""SELECT c.id, c.name, c.created_at, c.template_a, c.template_b, c.template_c,
                           (SELECT COUNT(*) FROM recipients r WHERE r.campaign_id = c.id) AS recipients,
                           (SELECT COUNT(*) FROM sends s WHERE s.campaign_id = c.id AND s.status = 'sent') AS sent,
                           (SELECT COUNT(DISTINCT s.id) FROM sends s
@@ -518,12 +897,25 @@ def create_app(config: Config) -> Flask:
                              WHERE s.campaign_id = c.id) AS opened,
                           (SELECT COUNT(DISTINCT s.id) FROM sends s
                              JOIN clicks ck ON ck.send_id = s.id
-                             WHERE s.campaign_id = c.id) AS clicked,
+                             WHERE s.campaign_id = c.id
+                               AND NOT {db._scanner_fingerprint_sql('s.id')}) AS clicked,
                           (SELECT COUNT(*) FROM conversions cv WHERE cv.campaign_id = c.id) AS converted
                    FROM campaigns c
+                   WHERE c.name NOT LIKE 'mailgun-preview-%'
+                     AND c.name NOT LIKE 'testsend-%'
                    ORDER BY c.id DESC"""
             ).fetchall()
-        return render_template_string(DASHBOARD_INDEX_HTML, campaigns=campaigns)
+            summary = db.index_summary(conn)
+            campaigns = []
+            for r in rows:
+                d = dict(r)
+                d["sparkline"] = db.campaign_sparkline(conn, d["id"], days=7)
+                campaigns.append(d)
+        return render_template_string(
+            DASHBOARD_INDEX_HTML,
+            campaigns=campaigns,
+            summary=summary,
+        )
 
     @app.route("/dashboard/c/<int:campaign_id>", methods=["GET"])
     def dashboard_campaign(campaign_id: int) -> Any:
@@ -559,19 +951,26 @@ def create_app(config: Config) -> Flask:
                 (campaign_id,),
             ).fetchall()
             top_links = conn.execute(
-                """SELECT ck.url, COUNT(DISTINCT s.recipient_id) AS unique_clickers, COUNT(*) AS total_clicks
+                f"""SELECT ck.url, COUNT(DISTINCT s.recipient_id) AS unique_clickers, COUNT(*) AS total_clicks
                    FROM clicks ck
                    JOIN sends s ON s.id = ck.send_id
                    WHERE s.campaign_id = ?
+                     AND ck.url NOT LIKE '%meditransfer.ch/impressum%'
+                     AND ck.url NOT LIKE '%meditransfer.ch/datenschutz%'
+                     AND NOT {db._scanner_fingerprint_sql('s.id')}
                    GROUP BY ck.url
                    ORDER BY unique_clickers DESC, total_clicks DESC
                    LIMIT 20""",
                 (campaign_id,),
             ).fetchall()
+            funnel = db.funnel_counts(conn, campaign_id)
+            timeseries = db.events_timeseries(conn, campaign_id)
         return render_template_string(
             DASHBOARD_CAMPAIGN_HTML,
-            campaign=campaign,
+            campaign=dict(campaign),
             stats=stats,
+            funnel=funnel,
+            timeseries=timeseries,
             recipients=recipients,
             top_links=top_links,
             conversions_recent=conversions_recent,

@@ -5,7 +5,7 @@ primary_region = "fra"
 
 [env]
   POSTMARK_FROM_EMAIL = "hello@meditransfer.ch"
-  POSTMARK_FROM_NAME = "MediTransfer"
+  POSTMARK_FROM_NAME = "Samuel Beatty · MediTransfer"
   POSTMARK_STREAM = "broadcast"
   MAILER_BASE_URL = "https://meditransfer-mailer.fly.dev"
   MAILER_DB_PATH = "/data/mailer.db"

@@ -110,6 +110,43 @@ def test_skips_no_emails(tmp_path: Path):
     assert out == []
 
 
+def test_one_per_domain_collapses_multiple_addresses_at_same_domain(tmp_path: Path):
+    cp = tmp_path / "cp.jsonl"
+    _write_checkpoint(cp, [
+        {"entry_id": 1, "section": "clinics", "title": "A", "url": "",
+         "status": "success",
+         "emails": {"priority": ["info@praxis.ch", "kontakt@praxis.ch"],
+                    "general": ["dr.meier@praxis.ch"], "other": []},
+         "referral": {"found": False}},
+        {"entry_id": 2, "section": "clinics", "title": "B", "url": "",
+         "status": "success",
+         "emails": {"priority": ["info@other.ch"], "general": [], "other": []},
+         "referral": {"found": False}},
+    ])
+    out = targets.build_recipients(
+        checkpoint_path=cp, repo_root=tmp_path,
+        bucket="priority+general", enrich=False, one_per_domain=True,
+    )
+    # One address per domain: priority wins over general (iteration order),
+    # first priority address wins over later priority at same domain.
+    assert {r.email for r in out} == {"info@praxis.ch", "info@other.ch"}
+
+
+def test_one_per_domain_off_by_default_keeps_everything(tmp_path: Path):
+    cp = tmp_path / "cp.jsonl"
+    _write_checkpoint(cp, [
+        {"entry_id": 1, "section": "clinics", "title": "", "url": "",
+         "status": "success",
+         "emails": {"priority": ["info@praxis.ch", "kontakt@praxis.ch"],
+                    "general": [], "other": []},
+         "referral": {"found": False}},
+    ])
+    out = targets.build_recipients(
+        checkpoint_path=cp, repo_root=tmp_path, bucket="priority", enrich=False,
+    )
+    assert {r.email for r in out} == {"info@praxis.ch", "kontakt@praxis.ch"}
+
+
 def test_write_read_roundtrip(tmp_path: Path):
     cp = tmp_path / "cp.jsonl"
     _write_checkpoint(cp, [

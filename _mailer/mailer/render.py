@@ -26,7 +26,6 @@ KNOWN_TEMPLATES: tuple[str, ...] = (
     "01-der-brief",
     "02-hero-cta",
     "03-stunden-zu-minuten",
-    "04-bento-benefits",
 )
 
 
