@@ -235,11 +235,12 @@ def test_extract_emails_handles_empty_and_broken_html():
 
 
 def test_classify_priority_prefixes():
+    # Removed `it@` — no longer priority (2026-04-23 audit). IT helpdesk is
+    # the wrong audience for Meditransfer.
     emails = {
         "info@clinic.ch",
         "kontakt@clinic.ch",
         "sekretariat@clinic.ch",
-        "it@clinic.ch",
         "reception@hospital.ch",
     }
     result = classify(emails)
@@ -272,5 +273,155 @@ def test_classify_other_bucket_catches_rest():
 def test_classify_sorted_within_buckets():
     emails = {"zz@foo.ch", "aa@foo.ch", "mm@foo.ch"}
     result = classify(emails)
-    all_together = result["priority"] + result["general"] + result["other"]
-    assert all_together == sorted(all_together)
+    # Priority bucket is tier-then-alpha, but general + other are plain alpha.
+    # Since all three emails land in `other`, sort-order there is alphabetical.
+    assert result["other"] == ["aa@foo.ch", "mm@foo.ch", "zz@foo.ch"]
+
+
+# ---------------------------------------------------------------------------
+# 2026-04-23 quality upgrade — new filters and tier system
+# ---------------------------------------------------------------------------
+
+
+def test_classify_sekretariat_compound():
+    """Compound prefixes like `sekretariatsdienste@` land in priority, not other.
+
+    Covers 333 real addresses that the old exact-match classify() lost:
+    `sekretariatsdienste@claraspital.ch`, `sekretariaturologie@h-och.ch`,
+    `sekretariatradio@spitalmaennedorf.ch`, etc."""
+    r = classify({"sekretariatsdienste@claraspital.ch"})
+    assert "sekretariatsdienste@claraspital.ch" in r["priority"]
+
+    r = classify({"secretariatdirection@ghol.ch"})
+    assert "secretariatdirection@ghol.ch" in r["priority"]
+
+    r = classify({"sekretariaturologie@h-och.ch"})
+    assert "sekretariaturologie@h-och.ch" in r["priority"]
+
+
+def test_classify_zuweiser_is_priority():
+    """Referral-coordinator mailboxes are the highest-value Meditransfer target."""
+    r = classify({"zuweiser@clinic.ch", "zuweiserbrief@hospital.ch"})
+    assert "zuweiser@clinic.ch" in r["priority"]
+    assert "zuweiserbrief@hospital.ch" in r["priority"]
+
+
+def test_classify_tier_orders_sekretariat_before_info():
+    """When both info@ and sekretariat@ exist at the same practice,
+    sekretariat@ must sort first in the priority list — the mailer picks
+    the first priority address, so tier order decides the chosen inbox."""
+    r = classify({"info@clinic.ch", "sekretariat@clinic.ch"})
+    assert r["priority"][0] == "sekretariat@clinic.ch"
+    assert r["priority"][1] == "info@clinic.ch"
+
+
+def test_classify_hin_outranks_info_and_general():
+    """HIN addresses outrank everything else."""
+    r = classify({"info@clinic.ch", "sekretariat@clinic.ch", "dr.meier@hin.ch"})
+    assert r["priority"][0] == "dr.meier@hin.ch"
+
+
+def test_classify_demotes_it_and_support_out_of_priority():
+    """IT helpdesk, support, edv, tech, admin, buchhaltung are no longer
+    priority — they're the wrong audience for Meditransfer cold outreach."""
+    r = classify({"it@clinic.ch", "support@clinic.ch", "edv@clinic.ch",
+                  "buchhaltung@clinic.ch", "admin@clinic.ch"})
+    assert r["priority"] == []
+    # They still get recorded somewhere (general or other), just not priority
+    rest = r["general"] + r["other"]
+    assert "it@clinic.ch" in rest
+
+
+def test_clean_email_drops_agency_domain():
+    """Web-agency / webdesign shop domains get dropped — we don't want to
+    cold-email the agency that made the clinic's website."""
+    assert clean_email("hello@yoo.digital") == ""
+    assert clean_email("simone@organica.agency") == ""
+    assert clean_email("info@webdesign-stern5.ch") == ""
+    assert clean_email("kontakt@werbeagentur-mueller.de") == ""
+    assert clean_email("digital@lane-digital.ch") == ""
+    assert clean_email("hello@wepractice.ch") == ""
+
+
+def test_clean_email_drops_media_garbage_username():
+    """CSS `url(...)` fragments that happened to parse as emails are noise."""
+    assert clean_email("media--c981039f--query@anything.ch") == ""
+    assert clean_email("media--deadbeef--query@x.ch") == ""
+
+
+def test_clean_email_drops_sentry_ingest_domain():
+    """Sentry telemetry DSNs leaked into the page source."""
+    assert clean_email("foo@o1039559.ingest.sentry.io") == ""
+    assert clean_email("bar@o37417.ingest.sentry.io") == ""
+    assert clean_email("x@sentry.service.msio.cloud") == ""
+
+
+def test_clean_email_drops_template_sample_addresses():
+    """CMS theme / office template sample placeholders."""
+    assert clean_email("max.mustermann@muster.com") == ""
+    assert clean_email("peter.muster@musterfirma.com") == ""
+    assert clean_email("marilyn.barbone@fotolia.com") == ""
+    assert clean_email("info@beispiel.de") == ""
+
+
+def test_clean_email_drops_activemind_legal():
+    """DPO-as-a-service address caught from impressum/datenschutz pages."""
+    assert clean_email("hirslanden@activemind.legal") == ""
+
+
+def test_extract_emails_rot13_decoder():
+    """ROT13-obfuscated mailtos (a clienia.ch anti-scraping trick) get
+    recovered by the decoder #10. The TLDs .pu / .pbz / .qr are ROT13 of
+    .ch / .com / .de and are the fingerprint."""
+    html = '<a>Kontakt: <span>gevntr.fpuybrffyv@pyvravn.pu</span></a>'
+    result = extract_emails(html)
+    assert "triage.schloessli@clienia.ch" in result
+
+
+def test_classify_third_party_legal_only_drop():
+    """When entry_domain is the practice's domain and an email's source is
+    only /impressum or /datenschutz AND the email's domain differs, drop it
+    (catches webmaster@agency credits, dpo.ch@affidea DPO services)."""
+    emails = {"webmaster@third-party-agency.ch", "info@clinic.ch"}
+    sources = {
+        "webmaster@third-party-agency.ch": "https://clinic.ch/impressum",
+        "info@clinic.ch": "https://clinic.ch/kontakt",
+    }
+    r = classify(emails, entry_domain="clinic.ch", sources=sources)
+    assert "webmaster@third-party-agency.ch" not in r["priority"]
+    assert "webmaster@third-party-agency.ch" not in r["general"]
+    assert "webmaster@third-party-agency.ch" not in r["other"]
+    assert "info@clinic.ch" in r["priority"]
+
+
+def test_classify_third_party_on_non_legal_page_is_kept():
+    """Same third-party domain but sourced from a regular page (team/kontakt)
+    is NOT dropped — we only apply the filter when the email ONLY appears
+    on legal/privacy pages."""
+    emails = {"webmaster@third-party.ch"}
+    sources = {"webmaster@third-party.ch": "https://clinic.ch/team"}
+    r = classify(emails, entry_domain="clinic.ch", sources=sources)
+    # Still shows up somewhere (general/other). Point is: not dropped.
+    assert any(
+        "webmaster@third-party.ch" in r[bucket]
+        for bucket in ("priority", "general", "other")
+    )
+
+
+def test_classify_same_domain_legal_page_address_is_kept():
+    """Third-party filter does NOT fire when email's domain matches the
+    practice's own domain (datenschutz@clinic.ch is THEIR legitimate DPO
+    mailbox, keep it)."""
+    emails = {"datenschutz@clinic.ch"}
+    sources = {"datenschutz@clinic.ch": "https://clinic.ch/datenschutz"}
+    r = classify(emails, entry_domain="clinic.ch", sources=sources)
+    assert any(
+        "datenschutz@clinic.ch" in r[bucket]
+        for bucket in ("priority", "general", "other")
+    )
+
+
+def test_classify_back_compat_without_source_args():
+    """Old callers that don't pass entry_domain/sources keyword args still work."""
+    r = classify({"info@clinic.ch", "sekretariat@clinic.ch"})
+    assert r["priority"][0] == "sekretariat@clinic.ch"  # tier still applies

@@ -176,6 +176,18 @@ NOISE_EMAIL_DOMAINS = {
     "yourdomain.com", "placeholder.com",
     "test.com", "test.ch",
     "localhost",
+    # Template placeholders caught in the audit (2026-04-23)
+    "muster.com", "musterfirma.com",
+    "beispiel.de", "beispiel.ch", "beispiel.com",
+    "abc.com",
+    # Legal / DPO-as-a-service (leak in from datenschutz/impressum pages)
+    "activemind.legal",  # hirslanden's DPO service, 299x in audit
+    # Platform legal (jimdo / wix datenschutz catcher)
+    "jimdo.com", "wix.com", "wixsite.com",
+    # Sentry monitoring services (msio.cloud is a Swiss variant)
+    "msio.cloud", "msio.ch",
+    # Stock photo attribution caught from <img alt> / watermarks
+    "fotolia.com", "shutterstock.com", "gettyimages.com",
 }
 
 # Username patterns that indicate the candidate isn't an email:
@@ -185,31 +197,117 @@ NOISE_EMAIL_DOMAIN_SUFFIXES = (
     ".bmp", ".tiff",
 )
 
-# --- Priority buckets for outreach targeting ---
-
-# Exact prefix match (or prefix followed by . - _) bumps to "priority"
-PRIORITY_PREFIXES = (
-    "info", "kontakt", "contact", "contatto",
-    "sekretariat", "secretariat", "secretary", "segreteria",
-    "verwaltung", "administration", "amministrazione",
-    "anmeldung", "termine", "empfang", "reception", "accueil", "ricezione",
-    "praxis", "klinik", "clinica", "cabinet", "studio",
-    "office", "buero", "büro",
-    "direktion", "direction", "direttore", "direzione",
-    "leitung", "management", "gestione",
-    "it", "edv", "tech", "it-support", "support",
-    "backoffice", "buchhaltung", "admin",
-    "mpa",  # Swiss: medizinische Praxisassistentin
+# Regex patterns applied to the full domain portion of the email.
+# Use these for suffix/infix matches we can't enumerate exactly (e.g. a
+# customer-specific Sentry project ID is generated per org).
+NOISE_EMAIL_DOMAIN_PATTERNS = (
+    r"\.ingest\.sentry\.io$",     # *@o1039559.ingest.sentry.io (~200 in audit)
+    r"^sentry\.service\.",         # sentry.service.msio.cloud
+    r"\.wixpress\.com$",            # any Wix subdomain
 )
 
+# Regex patterns applied to the username (local-part). Catches template sample
+# addresses and CSS-asset false positives that our email regex happily parses.
+NOISE_USERNAME_PATTERNS = (
+    r"^media--[0-9a-f]{8}--query$",   # 929+ CSS asset false positives in audit
+    r"^max\.mustermann$",             # template sample, 194x in audit
+    r"^peter\.muster$",
+    r"^marilyn\.barbone$",            # fotolia watermark catcher
+    r"^barbara$",                      # when on muster.ch
+    r"^vorname\.nachname$",
+    r"^vorname$", r"^nachname$",
+)
+
+# Regex patterns applied to the full domain to identify web-agency / webdesign
+# shop addresses. These get dropped entirely — a clinic is not reachable
+# through their website agency's contact email.
+AGENCY_DOMAIN_PATTERNS = (
+    # Word-boundary match on agency keywords. Boundary = start-of-string or
+    # a hyphen/dot, so it catches `webdesign-stern5.ch`, `webdesign.ch`,
+    # `foo.webdesign.bar`, but NOT e.g. `uxwebdesignerpro.ch` where the
+    # keyword is glued to other letters.
+    r"(^|[-.])(webdesign|webdesigner|webagentur|werbeagentur|internet-agentur|mediendesign)([-.]|$)",
+    r"(^|[.])agentur[-.]",
+    r"\.agency$",                       # organica.agency etc.
+    r"\.(digital|studio)$",             # yoo.digital, *.studio
+    r"^wepractice\.ch$",                # Medbase CMS vendor, 120x in audit
+    r"^dachcomdigital\.",
+    r"^lane-digital\.",
+    r"^multidigital\.",
+)
+
+# --- Priority buckets for outreach targeting ---
+#
+# Tier order (best first). Used by classify() to sort within the priority
+# bucket so the first element is always the most person-operated inbox.
+# Each tier uses *startswith* matching on the username, which catches both
+# bare prefixes (sekretariat@) and compounds (sekretariatsdienste@,
+# secretariatdirection@) that the old exact-match missed.
+#
+# Compound-safe matching: "sekretariat" matches "sekretariatsdienste@x.ch".
+# The separator-based fallback (prefix + . - _) is kept for "info.xyz@"
+# style addresses.
+#
+# IT / admin / buchhaltung addresses REMOVED from priority — they're tech
+# helpdesk, not referral-coordinator mailboxes. Meditransfer's cold email
+# is irrelevant to the IT department.
+
+# Tier TOP — secretary / reception / referral / MPA.
+# These mailboxes are staffed by the person who actually processes patient
+# referrals. Highest-value Meditransfer target.
+PRIORITY_PREFIXES_TOP = (
+    # German
+    "sekretariat", "empfang", "anmeldung", "mpa",
+    "zuweis", "zuweiser", "zuweisung", "ueberweis", "überweis", "einweis",
+    "triage", "patientenanmeldung",
+    # French
+    "secretariat", "secrétariat", "accueil",
+    "medecin-referent", "médecin-référent", "referent", "référent",
+    # Italian
+    "segreteria", "ricezione", "rinvio",
+    # English
+    "secretary", "reception", "referral", "referring",
+    # Fixed appointment booking
+    "termine", "termin", "appointment", "rdv",
+)
+
+# Tier MID — general reception mailboxes (current info@-tier behaviour).
+PRIORITY_PREFIXES_MID = (
+    "info", "kontakt", "contact", "contatto",
+    "praxis", "klinik", "clinica", "cabinet", "studio",
+)
+
+# Tier LOW — generic office / administration. Still priority (they're
+# owner-operated mailboxes) but ranked last.
+PRIORITY_PREFIXES_LOW = (
+    "office", "buero", "büro",
+    "verwaltung", "administration", "amministrazione",
+    "leitung",
+)
+
+# Flat list for back-compat with any external callers that import
+# PRIORITY_PREFIXES directly. Order is TOP → MID → LOW.
+PRIORITY_PREFIXES = PRIORITY_PREFIXES_TOP + PRIORITY_PREFIXES_MID + PRIORITY_PREFIXES_LOW
+
 # Any email on these domains is automatically priority (owner-operated HIN
-# network domain — every Swiss clinic/practice uses this for secure email)
+# network domain — every Swiss clinic/practice uses this for secure email).
+# HIN addresses rank at TOP tier because they're person-operated by design.
 PRIORITY_DOMAIN_SUFFIXES = (
     "hin.ch",
 )
 
 # Prefixes that suggest a doctor/professional contact — bucketed as "general"
 GENERAL_PREFIXES = ("arzt", "aerztin", "dr", "doc", "doctor", "med", "prof")
+
+# Page-types where a third-party address (web agency, DPO service, legal
+# contact) typically appears. When classify() receives source context and
+# an email's sources fall ONLY in this set AND the email's domain differs
+# from the practice's own domain, the email is dropped as third-party.
+THIRD_PARTY_SOURCE_HINTS = (
+    "impressum", "imprint", "mentions-legales", "mentions_legales",
+    "note-legali", "legal-notice", "legal",
+    "datenschutz", "datenschutzerklaerung", "privacy", "cgu",
+)
 
 
 # --- Decoder constants ---

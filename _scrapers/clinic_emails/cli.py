@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import queue
 import random
 import signal
 import sys
@@ -13,7 +14,7 @@ import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .checkpoint import Checkpoint
 from .crawler import DomainRateLimiter, crawl_entry
@@ -21,6 +22,7 @@ from .entries import load_entries
 from .extractors import classify
 from .patterns import SECTION_HANDLES
 from .report import write_report
+from .tui import LiveTUI
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +48,25 @@ def _setup_logger() -> logging.Logger:
     )
     logger.addHandler(h)
     return logger
+
+
+def _switch_logger_to_rich(logger: logging.Logger, console) -> None:
+    """Replace the StreamHandler with a RichHandler so log lines render
+    above the live region cleanly. Idempotent."""
+    from rich.logging import RichHandler
+
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+    rh = RichHandler(
+        console=console,
+        rich_tracebacks=False,
+        show_time=True,
+        show_path=False,
+        markup=False,
+        log_time_format="%H:%M:%S",
+    )
+    rh.setLevel(logging.INFO)
+    logger.addHandler(rh)
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +116,23 @@ def _run_test(url: str, logger: logging.Logger) -> None:
 def _build_entry_result(
     entry: Dict[str, Any], crawl_result: Dict[str, Any]
 ) -> Dict[str, Any]:
-    buckets = classify(crawl_result.get("emails", set()))
     sources = crawl_result.get("sources", {})
+    # Extract the practice's domain so classify() can flag third-party
+    # addresses (DPO services, web-agency credits) found only on
+    # legal/privacy pages.
+    entry_url = entry.get("url") or ""
+    entry_domain = ""
+    if entry_url:
+        try:
+            from urllib.parse import urlparse
+            entry_domain = urlparse(entry_url).netloc.lower().removeprefix("www.")
+        except Exception:
+            entry_domain = ""
+    buckets = classify(
+        crawl_result.get("emails", set()),
+        entry_domain=entry_domain or None,
+        sources=sources,
+    )
     return {
         "entry_id": entry.get("id"),
         "section": entry.get("section", ""),
@@ -159,6 +195,22 @@ def _run_main(args: argparse.Namespace, logger: logging.Logger) -> None:
 
     rl = DomainRateLimiter(min_delay=args.min_delay, max_delay=args.max_delay)
 
+    use_tui = sys.stdout.isatty() and not args.no_tui
+    tui: Optional[LiveTUI] = None
+    if use_tui:
+        tui = LiveTUI(
+            total=len(entries),
+            already_done=len(cp.done),
+            n_workers=args.workers,
+        )
+        # Hand the logger a Rich console handler so log lines render
+        # above the live region instead of tearing the layout.
+        _switch_logger_to_rich(logger, tui.console)
+        tui.log(
+            f"Pool: total={len(entries)} done={len(cp.done)} pending={len(pending)} workers={args.workers}",
+            style="cyan",
+        )
+
     counts: Dict[str, int] = defaultdict(int)
     emails_total = 0
     priority_total = 0
@@ -166,10 +218,21 @@ def _run_main(args: argparse.Namespace, logger: logging.Logger) -> None:
     start = time.time()
     stats_lock = threading.Lock()
 
+    # Pool of free worker slots — pop on entry, push on exit. Maps each
+    # in-flight task to a stable 0..N-1 index for the TUI's per-worker
+    # rows. Mirrors the per-host lock pattern in DomainRateLimiter.
+    slots: "queue.Queue[int]" = queue.Queue()
+    for i in range(args.workers):
+        slots.put(i)
+
     def _work(entry: Dict[str, Any]) -> None:
         nonlocal emails_total, priority_total
         if stop_event.is_set():
             return
+        slot = slots.get()
+        if tui is not None:
+            tui.on_worker_start(slot, entry)
+        t0 = time.monotonic()
         try:
             crawl_result = crawl_entry(entry["url"], rl, stop_event)
             result = _build_entry_result(entry, crawl_result)
@@ -194,34 +257,46 @@ def _run_main(args: argparse.Namespace, logger: logging.Logger) -> None:
             ems = result.get("emails") or {}
             emails_total += sum(len(v) for v in ems.values())
             priority_total += len(ems.get("priority", []))
+        elapsed = time.monotonic() - t0
+        if tui is not None:
+            tui.on_worker_finish(slot, entry, result, elapsed)
+        slots.put(slot)
 
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = [pool.submit(_work, e) for e in pending]
-        try:
-            for fut in as_completed(futures):
-                done += 1
-                if done % 25 == 0 or done == len(pending):
-                    elapsed = time.time() - start
-                    rate = done / elapsed if elapsed else 0
-                    eta_min = ((len(pending) - done) / rate / 60) if rate else 0
-                    ok = counts.get("success", 0) + counts.get("success_via_root", 0)
-                    logger.info(
-                        f"[{done}/{len(pending)}] "
-                        f"ok={ok} "
-                        f"no_emails={counts.get('no_emails', 0)} "
-                        f"failed={counts.get('fetch_failed', 0)} "
-                        f"err={counts.get('error', 0)} "
-                        f"emails={emails_total} priority={priority_total} "
-                        f"rate={rate:.2f}/s eta={eta_min:.1f}m"
-                    )
-                if stop_event.is_set():
-                    logger.warning("stop requested; cancelling queued workers")
-                    for f in futures:
-                        if not f.done():
-                            f.cancel()
-                    break
-        finally:
-            cp.close()
+    def _drive_pool() -> None:
+        nonlocal done
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            futures = [pool.submit(_work, e) for e in pending]
+            try:
+                for fut in as_completed(futures):
+                    done += 1
+                    if tui is None and (done % 25 == 0 or done == len(pending)):
+                        elapsed = time.time() - start
+                        rate = done / elapsed if elapsed else 0
+                        eta_min = ((len(pending) - done) / rate / 60) if rate else 0
+                        ok = counts.get("success", 0) + counts.get("success_via_root", 0)
+                        logger.info(
+                            f"[{done}/{len(pending)}] "
+                            f"ok={ok} "
+                            f"no_emails={counts.get('no_emails', 0)} "
+                            f"failed={counts.get('fetch_failed', 0)} "
+                            f"err={counts.get('error', 0)} "
+                            f"emails={emails_total} priority={priority_total} "
+                            f"rate={rate:.2f}/s eta={eta_min:.1f}m"
+                        )
+                    if stop_event.is_set():
+                        logger.warning("stop requested; cancelling queued workers")
+                        for f in futures:
+                            if not f.done():
+                                f.cancel()
+                        break
+            finally:
+                cp.close()
+
+    if tui is not None:
+        with tui:
+            _drive_pool()
+    else:
+        _drive_pool()
 
     write_report(Checkpoint(CHECKPOINT_PATH), RESULTS_DIR, logger)
 
@@ -251,6 +326,12 @@ def _build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--test", metavar="URL", help="Diagnostic: run pipeline on one URL")
     ap.add_argument("--sample", type=int, default=None, help="Randomly sample N pending entries")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for --sample")
+    ap.add_argument(
+        "--no-tui",
+        action="store_true",
+        help="Disable the live terminal UI; fall back to plain log output. "
+             "Auto-disabled when stdout is not a TTY (pipes, nohup, cron).",
+    )
     return ap
 
 

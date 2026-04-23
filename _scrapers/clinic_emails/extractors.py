@@ -32,13 +32,24 @@ from typing import Dict, List, Optional, Set
 from bs4 import BeautifulSoup
 
 from .patterns import (
+    AGENCY_DOMAIN_PATTERNS,
     DECRYPTX_KNOWN,
     GENERAL_PREFIXES,
+    NOISE_EMAIL_DOMAIN_PATTERNS,
     NOISE_EMAIL_DOMAIN_SUFFIXES,
     NOISE_EMAIL_DOMAINS,
+    NOISE_USERNAME_PATTERNS,
     PRIORITY_DOMAIN_SUFFIXES,
-    PRIORITY_PREFIXES,
+    PRIORITY_PREFIXES_LOW,
+    PRIORITY_PREFIXES_MID,
+    PRIORITY_PREFIXES_TOP,
+    THIRD_PARTY_SOURCE_HINTS,
 )
+
+# Compiled regex objects for the new pattern lists.
+_NOISE_DOMAIN_RES = tuple(re.compile(p) for p in NOISE_EMAIL_DOMAIN_PATTERNS)
+_NOISE_USERNAME_RES = tuple(re.compile(p) for p in NOISE_USERNAME_PATTERNS)
+_AGENCY_DOMAIN_RES = tuple(re.compile(p) for p in AGENCY_DOMAIN_PATTERNS)
 
 
 # Wider than RFC-strict; we let clean_email() tighten.
@@ -106,6 +117,13 @@ def clean_email(raw: str) -> str:
         return ""
     if any(domain.endswith(sfx) for sfx in NOISE_EMAIL_DOMAIN_SUFFIXES):
         return ""
+    # New noise filters (2026-04-23 audit additions)
+    if any(r.search(domain) for r in _NOISE_DOMAIN_RES):
+        return ""
+    if any(r.match(username) for r in _NOISE_USERNAME_RES):
+        return ""
+    if any(r.search(domain) for r in _AGENCY_DOMAIN_RES):
+        return ""
     # Image-filename patterns: "hero@2x.webp", "pic@560w.jpg", "foo@1120w2x.jpg"
     if re.match(r"^\d+x?w?$|^\d+w\d?x?$", username[-6:]):
         # only reject if domain suffix was image-like (already caught above),
@@ -123,6 +141,36 @@ def clean_email(raw: str) -> str:
         pass
 
     return email
+
+
+# ---------------------------------------------------------------------------
+# ROT13 fallback (decoder #10)
+# ---------------------------------------------------------------------------
+
+# ROT13-rotated TLDs for common real TLDs: ch → pu, com → pbz, de → qr, etc.
+# If we see one of these "impossible" TLDs on a candidate email, the whole
+# string is almost certainly ROT13-obfuscated (a known anti-scraping trick —
+# the clienia.ch clinic network uses it).
+_ROT13_TLDS = {"pu", "pbz", "qr", "se", "ng", "yv", "rh", "vg"}
+
+
+def _try_rot13(candidate: str) -> Optional[str]:
+    """If candidate's TLD is a ROT13-rotated common TLD, rotate the whole
+    string back and return the decoded email. Otherwise None."""
+    if "@" not in candidate:
+        return None
+    domain = candidate.rsplit("@", 1)[1]
+    tld = domain.rsplit(".", 1)[-1].lower()
+    if tld not in _ROT13_TLDS:
+        return None
+    # ROT13 the entire string
+    decoded = candidate.translate(str.maketrans(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "nopqrstuvwxyzabcdefghijklmNOPQRSTUVWXYZABCDEFGHIJKLM",
+    ))
+    # Validate the decoded form looks like a real email
+    cleaned = clean_email(decoded)
+    return cleaned or None
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +304,20 @@ def extract_emails(html: str) -> Set[str]:
             if cleaned:
                 found.add(cleaned)
 
+    # 9. ROT13 fallback: sweep raw HTML for email-shaped strings whose TLD
+    # looks ROT13-rotated (.pu/.pbz/.qr = .ch/.com/.de). Recovers addresses
+    # on sites that rot13 their mailtos as an anti-scraping trick (seen on
+    # clienia.ch network). clean_email first so we don't re-rot a real email.
+    _ROT13_EMAIL_RE = re.compile(
+        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\."
+        + "(?:" + "|".join(sorted(_ROT13_TLDS)) + r")\b",
+        re.IGNORECASE,
+    )
+    for m in _ROT13_EMAIL_RE.finditer(html):
+        decoded = _try_rot13(m.group())
+        if decoded:
+            found.add(decoded)
+
     return found
 
 
@@ -264,39 +326,122 @@ def extract_emails(html: str) -> Set[str]:
 # ---------------------------------------------------------------------------
 
 
-def classify(emails: Set[str]) -> Dict[str, List[str]]:
-    """Bucket emails into priority / general / other (sorted, deduped)."""
-    priority: List[str] = []
+def _prefix_matches(prefix: str, candidates: tuple) -> bool:
+    """True if `prefix` starts with any tuple entry followed by an optional
+    delimiter. Compound-safe: matches both bare `sekretariat@` AND compounds
+    like `sekretariatsdienste@`, `secretariatdirection@`, `zuweiserbrief@`.
+
+    Exact match and separator-delimited forms still match too (`info.xyz@`,
+    `kontakt-praxis@`)."""
+    for p in candidates:
+        if prefix == p or prefix.startswith(p):
+            return True
+        for sep in (".", "-", "_"):
+            if prefix.endswith(sep + p):
+                return True
+    return False
+
+
+def _domain_of(email: str) -> str:
+    return email.rsplit("@", 1)[1].lower() if "@" in email else ""
+
+
+def _registrable(domain: str) -> str:
+    """Rough registrable-domain extract: take the last two labels. Good enough
+    for Swiss practices where we just need to compare 'clinic.ch' across a
+    homepage hit vs. an impressum-only third-party hit."""
+    parts = domain.lower().strip(".").split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else domain
+
+
+def _is_third_party_legal_only(
+    email: str, entry_domain: Optional[str], sources: Optional[Dict[str, str]],
+) -> bool:
+    """Returns True if this email is clearly a third-party legal/DPO address
+    that leaked in from an impressum/datenschutz page. Catches entries like
+    `hirslanden@activemind.legal`, `dpo.ch@affidea.ch`, `webmaster@*`.
+
+    Rule: domain differs from entry's practice domain AND every recorded
+    source URL for this email is a legal/privacy page — UNLESS the email
+    is on a PRIORITY_DOMAIN_SUFFIX (hin.ch). HIN addresses are owned by
+    the practice by definition (Swiss secure-email authentication), so
+    even if one appears only in the impressum, it's still the practice's
+    own reachable inbox."""
+    if not entry_domain or not sources:
+        return False
+    domain = _domain_of(email)
+    # Never drop HIN addresses or other owner-operated priority domains.
+    if any(domain.endswith(sfx) for sfx in PRIORITY_DOMAIN_SUFFIXES):
+        return False
+    email_lower = email.lower()
+    src_url = sources.get(email_lower) or sources.get(email) or ""
+    if not src_url:
+        return False
+    src_lower = src_url.lower()
+    # Is every source page a legal/privacy page?
+    if not any(hint in src_lower for hint in THIRD_PARTY_SOURCE_HINTS):
+        return False
+    # Is the email's domain a different registrable domain than the practice?
+    if _registrable(domain) == _registrable(entry_domain):
+        return False
+    return True
+
+
+def classify(
+    emails: Set[str],
+    *,
+    entry_domain: Optional[str] = None,
+    sources: Optional[Dict[str, str]] = None,
+) -> Dict[str, List[str]]:
+    """Bucket emails into priority / general / other.
+
+    Priority bucket is sorted by tier (TOP → MID → LOW) then alphabetically,
+    so the first element is always the best contact (prefers `sekretariat@`
+    over `info@` when both exist at the same practice).
+
+    When `entry_domain` and `sources` are supplied, addresses whose domain
+    differs from `entry_domain` AND whose recorded source is ONLY a legal /
+    privacy page get dropped entirely (catches DPO-as-a-service leaks and
+    web-agency credits in impressum pages).
+
+    The keyword args are optional so old call sites keep working."""
+    # Priority tier ranking (lower = better for sort stability)
+    TIER_HIN = 0       # HIN-network addresses — person-operated by design
+    TIER_TOP = 1       # sekretariat, empfang, zuweiser, triage, mpa, etc.
+    TIER_MID = 2       # info, kontakt, contact, praxis, klinik
+    TIER_LOW = 3       # office, buero, verwaltung, administration, leitung
+    NOT_PRIORITY = 99
+
+    priority_tiered: List[tuple] = []
     general: List[str] = []
     other: List[str] = []
 
-    for email in sorted(emails):
+    for email in emails:
+        # Third-party legal-only filter (drops e.g. `webmaster@agency.ch`
+        # found only on /impressum).
+        if _is_third_party_legal_only(email, entry_domain, sources):
+            continue
+
         prefix, _, domain = email.partition("@")
         prefix = prefix.lower()
 
-        # HIN network — specifically the Swiss healthcare provider email system.
-        # Every hin.ch address belongs to a registered practitioner or practice.
+        # HIN network — highest priority, any local-part.
         if any(domain.endswith(sfx) for sfx in PRIORITY_DOMAIN_SUFFIXES):
-            priority.append(email)
+            priority_tiered.append((TIER_HIN, email))
             continue
 
-        # prefix-based priority: exact match OR delimiter-separated variant
-        is_priority = False
-        for p in PRIORITY_PREFIXES:
-            if prefix == p:
-                is_priority = True
-                break
-            for sep in (".", "-", "_"):
-                if prefix.startswith(p + sep) or prefix.endswith(sep + p):
-                    is_priority = True
-                    break
-            if is_priority:
-                break
-
-        if is_priority:
-            priority.append(email)
+        # Tier matching (compound-safe startswith)
+        if _prefix_matches(prefix, PRIORITY_PREFIXES_TOP):
+            priority_tiered.append((TIER_TOP, email))
+            continue
+        if _prefix_matches(prefix, PRIORITY_PREFIXES_MID):
+            priority_tiered.append((TIER_MID, email))
+            continue
+        if _prefix_matches(prefix, PRIORITY_PREFIXES_LOW):
+            priority_tiered.append((TIER_LOW, email))
             continue
 
+        # General (doctor prefixes)
         if any(
             prefix == p or prefix.startswith(p + ".") or prefix.startswith(p + "-")
             for p in GENERAL_PREFIXES
@@ -305,4 +450,8 @@ def classify(emails: Set[str]) -> Dict[str, List[str]]:
         else:
             other.append(email)
 
+    # Sort priority by (tier, alpha) — first element is always best contact.
+    priority = [e for _, e in sorted(priority_tiered, key=lambda t: (t[0], t[1]))]
+    general.sort()
+    other.sort()
     return {"priority": priority, "general": general, "other": other}
