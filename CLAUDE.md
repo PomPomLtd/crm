@@ -62,6 +62,35 @@ Both passes piggyback on the same HTTP fetches; one crawl yields both data sets.
 
 Companion diagnostic: `research_email_patterns.py` samples N random URLs and catalogs which obfuscation patterns / CMSs / contact-page conventions exist in the target population. Useful for gauging expected hit rate before a long run and for discovering new decoders worth adding.
 
+### URL enrichment (`_scrapers/url_enrichment.py`)
+
+Second-stage tool that **fills the `URL` field on existing Craft entries**. The initial Feed-Me import populated URLs for some entries but ~35k entries across sections 2–6 were left without a URL — mostly because `groupclinics/urlFetch.py` and `med-clinic/urlFetch.py` used rate-limited DuckDuckGo, giving up after backoff. Without a URL, the email scraper can't crawl those practices and we lose thousands of potential email addresses.
+
+The enrichment runner:
+
+1. Queries Craft for enabled entries in sections 2–6 that lack the URL field (`ee61a20b-95a1-4265-b42d-84a780431065`).
+2. **Dedupes in SQL** via `GROUP BY title, city, sectionId` — Feed-Me imported most practices twice (consecutive entry IDs with the same title/city); this collapses them so we only hit SearchAPI once per practice.
+3. Calls SearchAPI's Google engine (`num=10`, gl=ch, hl=de) with `{title} {city}`.
+4. Picks the first result in positions 1–2 that passes:
+   - Not in `BANNED_DOMAINS` (onedoc, doktor.ch, search.ch, firmen.ch, doctena, zip.ch, logicrdv, medsite, therapievermittlung, treatwell, hin.ch, social/search/wiki, etc.)
+   - Not in `LARGE_PROVIDER_DOMAINS` (hirslanden, usz, ksa, ksb, ksw, ksgr, insel, luks, sanacare, medbase, swissmedical, h-och, upd, upk, pdag, etc.)
+   - Not a PDF/DOC/RTF path
+   - Not a staging/test subdomain
+5. Writes the URL back into `elements_sites.content` via `JSON_SET` on the same field UID the scraper reads.
+6. If no clean URL is found in positions 1–2, records `reason="no_site_in_top_2:<top_host>"` and moves on — the practice likely has no website of its own, and taking a position-3+ long-shot result would corrupt Craft with directory/aggregator URLs.
+
+```bash
+cd _scrapers && source venv/bin/activate
+python url_enrichment.py --test 307073           # one entry dry-run
+python url_enrichment.py --sections 4 --limit 500 --workers 8   # small batch
+python url_enrichment.py --workers 8             # full run, all 5 sections
+python url_enrichment.py --no-tui --workers 8    # plain log output (CI/pipe-safe)
+```
+
+Rich-based live TUI (`LiveTUI` class inline in the script) mirrors the `clinic_emails/tui.py` style: header progress bar → workers panel (with section code) + dashboard panel (outcomes bar, pick-position histogram, per-section hit-rate) → recent tail. Resumable via `_scrapers/results/url_enrichment_checkpoint.jsonl` — every completed entry is appended atomically; re-runs skip any already-processed entry.
+
+**When to re-run**: after any new Feed-Me import that adds entries without URLs, or after tightening the banned-domain list (in which case: null the URL field for the checkpointed entries via `UPDATE elements_sites SET content = JSON_REMOVE(content, '$."<URL_UID>"')` so they get re-processed).
+
 ### Legacy scraper subsystem (onedoc.ch directory crawl)
 
 Separate from the clinic email finder. These populate Craft in the first place:

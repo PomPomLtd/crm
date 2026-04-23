@@ -50,6 +50,10 @@ _scrapers/results/clinic_emails_*_summary.txt
 _scrapers/results/clinic_entries.json
 _scrapers/results/research_patterns_*.json
 
+# URL enrichment runtime artifacts
+_scrapers/results/url_enrichment_checkpoint.jsonl
+_scrapers/results/url_enrichment_checkpoint.jsonl.pre-*
+
 # Mailer runtime artifacts
 _mailer/.env
 _mailer/state/*.db
