@@ -45,10 +45,14 @@ _scrapers/companies_*.csv
 # Clinic email scraper runtime artifacts
 # (research markdown research_patterns_*.md is kept for reference)
 _scrapers/results/clinic_emails_checkpoint.jsonl
+_scrapers/results/clinic_emails_checkpoint.jsonl.*
+_scrapers/results/clinic_emails_checkpoint.pre-*
 _scrapers/results/clinic_emails_*.csv
 _scrapers/results/clinic_emails_*_summary.txt
 _scrapers/results/clinic_entries.json
 _scrapers/results/research_patterns_*.json
+_scrapers/results/scraper_run_*.log
+_scrapers/results/reclassify_*.log
 
 # URL enrichment runtime artifacts
 _scrapers/results/url_enrichment_checkpoint.jsonl
