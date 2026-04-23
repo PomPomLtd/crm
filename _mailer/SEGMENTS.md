@@ -90,6 +90,33 @@ Campaign name: `hospitals-dach-YYYYMMDD`
 
 ---
 
+## `top-tier-upgrade` — same-domain, different-inbox axis (2026-04-24+)
+
+Emails at domains we've **already contacted** where the scraper's tier-system now exposes a top-tier address (sekretariat@, zuweiser@, empfang@) that wasn't in the priority bucket on the first pass. Ethically this is a new recipient (different inbox); operationally it's a way to reach the referral coordinator after we first reached the generic `info@`. Use cautiously — the two inboxes may forward to the same person at small practices.
+
+Not a standalone `targets build` invocation — it needs cross-referencing against the Fly sends table. See `_mailer/build_next_week_campaigns.py` for the implementation.
+
+---
+
+## `other-ref` — lower-confidence inbox prefix, referral-detected
+
+Mailboxes that don't match any priority prefix (info / sekretariat / contact / etc.) but sit on a practice site where the scraper detected a referral section. Examples: `team@praxis-x.ch`, `praxis.meier@x.ch`, `kontaktformular@x.ch`. The referral-section signal on the same site gives us confidence this is a real practice inbox.
+
+```bash
+python send_mailer.py targets build \
+  --checkpoint ../_scrapers/results/clinic_emails_checkpoint.jsonl.reclassified.jsonl \
+  --sections groupPractices,medClinics,medicalCenters,clinics,hospitals \
+  --has-referral yes --bucket all --one-per-domain \
+  --cantons ZH,BE,AG,LU,SG,BS,BL,SO,TG,SH,SZ,ZG,GR,AR,AI,OW,NW,UR,GL,FR \
+  -o out/other-ref-raw.csv
+# ↑ includes priority (use that for earlier sends); filter to bucket=other
+#   for this specific axis.
+```
+
+Campaign name: `other-ref-YYYYMMDD`
+
+---
+
 ## Sampling to a fixed size
 
 `targets build` has no size cap — filters produce whatever they produce. To sample to an exact size with a reproducible seed:

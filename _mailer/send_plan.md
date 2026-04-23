@@ -4,26 +4,27 @@ Living document. Update as sends go out. All volumes are from the Fly-hosted mai
 
 ---
 
-## Current state (last updated 2026-04-22, end of day 2)
+## Current state (last updated 2026-04-23)
 
-**Sent so far: 920 total across 4 campaigns**, all from the `_mailer/mailer/templates/` A/B/C split:
+**Sent so far: 1,554 unique emails across 5 campaigns**, all from the `_mailer/mailer/templates/` A/B/C split:
 
 | Campaign | Sent | Segment |
 |---|---|---|
 | `smalldach-referral-20260421` | 300 | groupPractices+medClinics+medicalCenters, DACH, has_referral=yes, priority bucket, one-per-domain. Day 1 (~300 initial sample). |
 | `smalldach-referral-20260421-b` | 143 | Remainder of the same pool after same-day dedup. |
 | `mid-dach-referral-20260422` | 77 | Adds `clinics` section to the above filter. Dedup against day 1 left only 77 new. |
-| `mid-dach-broad-20260422` | 400 of 936 pending | Drops `has_referral=yes` (broader pool). 536 still pending in this campaign. |
+| `mid-dach-broad-20260422` | 936 | Drops `has_referral=yes` (broader pool). Pool fully sent. |
+| `hospitals-dach-20260423` | 97 of 159 | Hospitals, has_referral=yes, priority, one-per-domain. 62 pending → rolls into Fri 04-24. |
 
-**Global opt-outs: 66** (auto-added from bounces + unsubscribes + 4 manually-added HIN-redirect cases).
+**Global opt-outs: 106**.
 
-**Observed metrics on sends 1 (day 1, n=443):**
+**Observed metrics on sends 1–2 (n=920):**
 - Delivered rate: 99.7% (bounces 0.3%) — excellent
 - Open rate: ~31% (still likely 5–10% scanner-inflated; reality ≈ 25%)
-- **Real CTR (scanner-filtered): ~0.2%** (1 human click across all 443 sends)
+- **Real CTR (scanner-filtered): ~0.2%** (1 human click across all 443 sends measured in detail)
 - Unsubscribe rate: ~5% first 48h then stabilising lower — in the high-normal range for cold B2B to a scraped list
 
-**Segments exhausted:** `smalldach-referral` (both halves) — the entire `groupPractices + medClinics + medicalCenters × DACH × has_referral=yes × priority × one-per-domain` pool has been contacted.
+**Fresh inventory (2026-04-23 post-enrichment re-crawl):** ~1,300 DACH+FR domains never contacted, after purging 1,318 stale-URL checkpoint entries and reclassifying the full checkpoint (`+1,860` sekretariat/zuweiser promotions, `-4,634` noise addresses). See `_mailer/out/next-week/*.csv` for the prepared campaign files.
 
 ---
 
@@ -67,12 +68,27 @@ Per user feedback (2026-04-22, saved in memory `feedback_mailer_confirm_before_s
 
 In send order. Each new segment is **one axis shift** from the previous send (one-axis-per-day rule).
 
-1. **`mid-dach-broad-20260422` (536 remaining)** — Thursday 2026-04-23: send another 400–500 from the existing `mid-dach-broad` pool. No change to the filter; just draining the remainder.
-2. **`mid-dach-broad-priority-general`** — next axis shift: add the `general` bucket (doctor personal addresses like `dr.meier@praxis.ch`) to the existing DACH × small-sections × has-referral-agnostic filter. Expected new pool: ~1,000–2,000 after cross-campaign dedup. Send size: per ramp cap.
-3. **`hospitals-dach`** — deferred until we have clear signal from the smaller-practice cohorts. Chain sites (Hirslanden, USZ, Insel, KSGR) dominate this section; `--one-per-domain` is **mandatory** to avoid blasting the same inbox.
-4. **Romandie (VD, GE, NE, JU, parts of FR)** — blocked on a French translation of the 3 templates. Same story for Ticino (TI) + Italian.
+### Week of 2026-04-24 → 2026-04-30 (prepared 2026-04-23)
 
-Segments 2 and 3 are documented in `_mailer/SEGMENTS.md` with copy-pasteable CLI invocations.
+Five CSVs, pre-built under `_mailer/out/next-week/` (gitignored like the rest of `_mailer/out/`; a copy lives in the dated backup dir `~/Documents/src-files/_DBS/pompom-crm-20260423/`). Each was dedup'd against the 1,554 already-sent emails and against every earlier day in the week (zero inter-day overlap; see `_mailer/build_next_week_campaigns.py` for the logic).
+
+| Day | CSV | Sends | Campaign name | Axis |
+|---|---|---:|---|---|
+| Fri 2026-04-24 | `day1-20260424-fri.csv` | 300 | `fresh-priority-20260424` | Priority, referral-preferred. Mix of hospitals (31, finishing last week) + small sections (269). |
+| Mon 2026-04-27 | `day2-20260427-mon.csv` | 200 | `fresh-priority-mon-20260427` | Priority continued — small sections + clinics. Conservative Monday. |
+| Tue 2026-04-28 | `day3-20260428-tue.csv` | 250 | `priority-upgrades-20260428` | Priority remainder + **upgrade axis** (top-tier sekretariat/zuweiser at domains previously hit at `info@`) + padding from `other + has-referral=yes`. |
+| Wed 2026-04-29 | `day4-20260429-wed.csv` | 200 | `other-ref-20260429` | "Other" bucket — non-prefix-matched practice inboxes, referral-detected primarily. **New axis**: low-confidence-prefix fallback. |
+| Thu 2026-04-30 | `day5-20260430-thu.csv` | 200 | `other-rest-20260430` | "Other" no-referral + fresh general (doctor personal, 10). **CONDITIONAL** on Wed metrics holding: spam <0.05%, bounce <1%, unsub <5%. Skip if Wed looks bad. |
+| **Total** | | **1,150** | | |
+
+Caps land below the Week-2 policy ceiling (1,000–1,500/day) because the fresh inventory is pool-limited — after this week we have ~191 "other" addresses + 34 upgrades left. More volume requires either new URL enrichment or re-contacting previously-sent domains (different campaign class).
+
+**Deferred to a later week:**
+- **Sender-name A/B test** (memory `project_mailer_send_strategy`'s "send 2") — deferred until we have a uniform 2,000+ cohort to split cleanly.
+- **Subject-line A/B test** ("send 3") — runs after the sender-name winner is known.
+- **Romandie (VD, GE, NE, JU, parts of FR)** and **Ticino (TI)** — blocked on FR/IT template translation. The scraper has this data ready on the reclassified checkpoint (Romandie/Ticino run was cancelled mid-flight 2026-04-23; we have 914 partially-crawled addresses sitting in the checkpoint for whenever templates land).
+
+See `_mailer/SEGMENTS.md` for historical filter invocations and the naming convention.
 
 ---
 
