@@ -120,6 +120,7 @@ LARGE_PROVIDER_DOMAINS = {
     "sanacare.ch", "medbase.ch", "medix.ch", "medix-gruppenpraxis.ch",
     "swissmedical.net",
     "h-och.ch", "barmelweid.ch",
+    "lindenhofgruppe.ch",  # Lindenhof Gruppe Bern — 221x in 2026-04-23 audit
     # Multi-hospital cantonal groups
     "spitaeler-sh.ch", "spitaleler-sh.ch",
     # Specialized / psychiatric networks (university + cantonal)
@@ -864,8 +865,10 @@ def run_one(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--sections", default="2,3,4,5,6",
-                   help="Craft section IDs to enrich (default: 2,3,4,5,6)")
+    p.add_argument("--sections", default="2,3,4,5",
+                   help="Craft section IDs to enrich (default: 2,3,4,5 — "
+                        "excludes hospitals (sectionId=6) since they are "
+                        "outside the Meditransfer cold-outreach target group)")
     p.add_argument("--limit", type=int, help="Max entries to process this run")
     p.add_argument("--workers", type=int, default=5, help="Concurrent API calls (default: 5)")
     p.add_argument("--test", type=int, metavar="ENTRY_ID",

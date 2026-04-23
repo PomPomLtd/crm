@@ -37,6 +37,61 @@ _DUMP_QUERY = (
     "AND el.archived = 0"
 )
 
+# --- Canton extraction (same token approach as mailer/targets.py) ---
+# Maps full German/French/Italian canton names + 2-letter codes to the
+# canonical 2-letter code.
+_CANTON_TOKENS: Dict[str, str] = {
+    "zh": "ZH", "be": "BE", "lu": "LU", "ur": "UR", "sz": "SZ", "ow": "OW",
+    "nw": "NW", "gl": "GL", "zg": "ZG", "fr": "FR", "so": "SO", "bs": "BS",
+    "bl": "BL", "sh": "SH", "ar": "AR", "ai": "AI", "sg": "SG", "gr": "GR",
+    "ag": "AG", "tg": "TG", "ti": "TI", "vd": "VD", "vs": "VS", "ne": "NE",
+    "ge": "GE", "ju": "JU",
+    "zürich": "ZH", "zuerich": "ZH", "bern": "BE", "berne": "BE",
+    "luzern": "LU", "lucerne": "LU", "basel-stadt": "BS",
+    "basel-landschaft": "BL", "basel": "BS",
+    "st. gallen": "SG", "st.gallen": "SG", "sankt gallen": "SG",
+    "graubünden": "GR", "graubunden": "GR",
+    "tessin": "TI", "ticino": "TI", "waadt": "VD", "vaud": "VD",
+    "wallis": "VS", "valais": "VS", "neuenburg": "NE",
+    "neuchâtel": "NE", "neuchatel": "NE", "genf": "GE",
+    "genève": "GE", "geneve": "GE", "genf / geneve": "GE",
+    "freiburg": "FR", "fribourg": "FR", "schwyz": "SZ",
+    "obwalden": "OW", "nidwalden": "NW", "glarus": "GL",
+    "zug": "ZG", "solothurn": "SO", "schaffhausen": "SH",
+    "appenzell ausserrhoden": "AR", "appenzell innerrhoden": "AI",
+    "aargau": "AG", "thurgau": "TG", "uri": "UR", "jura": "JU",
+}
+
+# DACH-default canton set — German-speaking cantons only. Excludes Romandie
+# (GE, VD, NE, JU), predominantly-French bilingual (FR, VS), and Ticino (TI).
+# Our mailer templates are DE-only, so crawling non-DACH practices burns
+# time for addresses we can't actually cold-email yet.
+DEFAULT_CANTONS: tuple = (
+    "ZH", "BE", "AG", "LU", "SG", "BS", "BL", "SO", "TG", "SH",
+    "SZ", "ZG", "GR", "AR", "AI", "OW", "NW", "UR", "GL",
+)
+
+
+def extract_canton_code(content_obj: Any) -> str:
+    """Walk content JSON; return 2-letter canton code if any value matches a
+    known canton name/code. Returns '' if no canton found."""
+    if not isinstance(content_obj, dict):
+        return ""
+    for val in content_obj.values():
+        if isinstance(val, str):
+            s = val.strip().lower().rstrip(".").strip()
+        elif isinstance(val, dict):
+            raw = val.get("value") if val.get("type") != "url" else None
+            s = raw.strip().lower().rstrip(".").strip() if isinstance(raw, str) else ""
+        else:
+            continue
+        if not s:
+            continue
+        code = _CANTON_TOKENS.get(s)
+        if code:
+            return code
+    return ""
+
 
 def _host_bare(url: str) -> str:
     try:
@@ -93,12 +148,14 @@ def dump_from_db(cache_path: str, repo_root: str, logger) -> List[Dict[str, Any]
         url = extract_practice_url(raw.get("content"))
         if not url:
             continue
+        canton = extract_canton_code(raw.get("content"))
         entries.append(
             {
                 "id": raw["id"],
                 "section": raw.get("section", ""),
                 "title": raw.get("title", ""),
                 "url": url,
+                "canton": canton,
             }
         )
 

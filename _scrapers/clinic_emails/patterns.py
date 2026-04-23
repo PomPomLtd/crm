@@ -180,6 +180,7 @@ NOISE_EMAIL_DOMAINS = {
     "muster.com", "musterfirma.com",
     "beispiel.de", "beispiel.ch", "beispiel.com",
     "abc.com",
+    "mysite.com",  # CMS template default — caught in post-enrichment sample
     # Legal / DPO-as-a-service (leak in from datenschutz/impressum pages)
     "activemind.legal",  # hirslanden's DPO service, 299x in audit
     # Platform legal (jimdo / wix datenschutz catcher)

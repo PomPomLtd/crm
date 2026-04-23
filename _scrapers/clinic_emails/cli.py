@@ -163,6 +163,27 @@ def _run_main(args: argparse.Namespace, logger: logging.Logger) -> None:
         entries = [e for e in entries if e.get("section") == handle]
         logger.info(f"Filtered to section={handle}: {len(entries)}/{before}")
 
+    # Canton filter — default DACH (German-speaking only), so we don't waste
+    # crawl time on Romandie/Ticino practices we can't cold-email until
+    # FR/IT mailer templates exist. Pass --cantons all to disable.
+    canton_arg = (args.cantons or "").strip()
+    if canton_arg and canton_arg.lower() != "all":
+        from .entries import DEFAULT_CANTONS
+        if canton_arg.upper() == "DACH":
+            wanted = set(DEFAULT_CANTONS)
+        else:
+            wanted = {c.strip().upper() for c in canton_arg.split(",") if c.strip()}
+        before = len(entries)
+        entries = [e for e in entries if (e.get("canton") or "").upper() in wanted]
+        unknown_canton_count = sum(
+            1 for e in entries if not (e.get("canton") or "").strip()
+        )
+        logger.info(
+            f"Canton filter ({'DACH' if canton_arg.upper()=='DACH' else 'custom'}): "
+            f"{len(entries)}/{before} entries kept "
+            f"(cantons = {sorted(wanted)})"
+        )
+
     cp = Checkpoint(CHECKPOINT_PATH)
     pending = [e for e in entries if int(e["id"]) not in cp.done]
     logger.info(
@@ -321,6 +342,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Restrict to one section: 2=medicalCenters 3=clinics 4=groupPractices 5=medClinics 6=hospitals",
     )
     ap.add_argument("--refresh-input", action="store_true", help="Re-dump entries from DB")
+    ap.add_argument(
+        "--cantons",
+        default="DACH",
+        help="Comma-separated 2-letter canton codes to KEEP. Default 'DACH' = "
+             "all German-speaking cantons (ZH,BE,AG,LU,SG,BS,BL,SO,TG,SH,"
+             "SZ,ZG,GR,AR,AI,OW,NW,UR,GL) — excludes Romandie + Ticino + "
+             "predominantly-French bilingual cantons (FR,VS). Use 'all' to "
+             "disable canton filtering.",
+    )
     ap.add_argument("--restart", action="store_true", help="Wipe checkpoint before running")
     ap.add_argument("--report", action="store_true", help="Rebuild CSV/summary from checkpoint and exit")
     ap.add_argument("--test", metavar="URL", help="Diagnostic: run pipeline on one URL")
