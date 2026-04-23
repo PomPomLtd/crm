@@ -43,7 +43,7 @@ Living document. Update as sends go out. All volumes are from the Fly-hosted mai
 
 **Gmail.com recipients**: Google now explicitly discourages cold B2B to `@gmail` without double-opt-in. The scraper collected ~5,000 `gmail.com` priority emails — keep them **off the list** for the foreseeable future. This is already easy to enforce: the current priority-bucket filter naturally skews away from them, and we can add a blocklist filter if we ever need to.
 
-**HIN network (`*@hin.ch`)**: These are the Swiss clinical secure-email network addresses — our truest product-fit audience. **Never cold-send to HIN.** They were explicitly given for clinical correspondence, not marketing. Keep them for warm, one-to-one outreach only.
+**HIN network (`*@hin.ch`)**: Swiss clinical secure-email network — our truest product-fit audience. Each HIN address is a specific person, not a shared mailbox, so **treat them as distinct recipients** (no domain-level dedup). Ramp cautiously with opt-outs aggressively honored; watch complaint rate per-batch because HIN users are domain-savvy and a complaint there carries more weight than `info@praxis.ch`.
 
 ---
 
@@ -72,16 +72,18 @@ In send order. Each new segment is **one axis shift** from the previous send (on
 
 Five CSVs, pre-built under `_mailer/out/next-week/` (gitignored like the rest of `_mailer/out/`; a copy lives in the dated backup dir `~/Documents/src-files/_DBS/pompom-crm-20260423/`). Each was dedup'd against the 1,554 already-sent emails and against every earlier day in the week (zero inter-day overlap; see `_mailer/build_next_week_campaigns.py` for the logic).
 
+**Key unlock (2026-04-23 rebuild)**: HIN addresses (`*@hin.ch`) are NOT deduped by domain. Each HIN inbox is a specific person on Switzerland's clinical secure-email network — `sekretariat.x@hin.ch` and `dr.meier@hin.ch` are distinct recipients even though they share the domain. This unlocks 3,738 fresh HIN addresses.
+
 | Day | CSV | Sends | Campaign name | Axis |
 |---|---|---:|---|---|
-| Fri 2026-04-24 | `day1-20260424-fri.csv` | 300 | `fresh-priority-20260424` | Priority, referral-preferred. Mix of hospitals (31, finishing last week) + small sections (269). |
-| Mon 2026-04-27 | `day2-20260427-mon.csv` | 200 | `fresh-priority-mon-20260427` | Priority continued — small sections + clinics. Conservative Monday. |
-| Tue 2026-04-28 | `day3-20260428-tue.csv` | 250 | `priority-upgrades-20260428` | Priority remainder + **upgrade axis** (top-tier sekretariat/zuweiser at domains previously hit at `info@`) + padding from `other + has-referral=yes`. |
-| Wed 2026-04-29 | `day4-20260429-wed.csv` | 200 | `other-ref-20260429` | "Other" bucket — non-prefix-matched practice inboxes, referral-detected primarily. **New axis**: low-confidence-prefix fallback. |
-| Thu 2026-04-30 | `day5-20260430-thu.csv` | 200 | `other-rest-20260430` | "Other" no-referral + fresh general (doctor personal, 10). **CONDITIONAL** on Wed metrics holding: spam <0.05%, bounce <1%, unsub <5%. Skip if Wed looks bad. |
-| **Total** | | **1,150** | | |
+| Fri 2026-04-24 | `day1-20260424-fri.csv` | 315 | `fresh-priority-20260424` | Priority (hospitals-ref finish + small non-HIN) + 84 HIN TOP-tier (sekretariat/zuweiser). |
+| Mon 2026-04-27 | `day2-20260427-mon.csv` | 400 | `fresh-priority-mon-20260427` | Light Monday: 200 non-HIN priority + 200 HIN. |
+| Tue 2026-04-28 | `day3-20260428-tue.csv` | 800 | `priority-hin-upgrades-20260428` | Non-HIN priority remainder + 54 top-tier upgrades (same-domain new-inbox axis) + 650 HIN. Week-2 ramp starts. |
+| Wed 2026-04-29 | `day4-20260429-wed.csv` | 1,000 | `hin-other-20260429` | Peak day: 800 HIN + 200 non-HIN `other + has-referral=yes` (first send to non-prefix-matched practice inboxes). |
+| Thu 2026-04-30 | `day5-20260430-thu.csv` | 1,200 | `hin-bulk-20260430` | HIN bulk (900) + `other` no-referral + fresh general (300). **CONDITIONAL** on Wed metrics holding: spam <0.05%, bounce <1%, unsub <5%. Skip if Wed looks bad. |
+| **Total** | | **3,715** | | |
 
-Caps land below the Week-2 policy ceiling (1,000–1,500/day) because the fresh inventory is pool-limited — after this week we have ~191 "other" addresses + 34 upgrades left. More volume requires either new URL enrichment or re-contacting previously-sent domains (different campaign class).
+Caps land within the Week-2 policy ceiling (1,000–1,500/day). HIN is ~26%→81% of daily volume, ramping up as the non-HIN priority pool depletes. Pool remaining after this week: 1,104 fresh HIN + 257 other + 34 upgrades = ~1,400 for the following week, plus whatever new URL enrichment finds.
 
 **Deferred to a later week:**
 - **Sender-name A/B test** (memory `project_mailer_send_strategy`'s "send 2") — deferred until we have a uniform 2,000+ cohort to split cleanly.

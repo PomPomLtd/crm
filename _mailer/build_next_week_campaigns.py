@@ -105,14 +105,33 @@ def iter_pool():
                     }
 
 
-def collapse_one_per_domain(records: Iterable[dict]) -> Dict[str, dict]:
-    """Collapse to one-per-domain. Priority bucket wins over general/other.
-    Within priority, TOP-tier local-parts win (sekretariat/zuweiser/…).
-    First-occurrence tiebreak."""
+HIN_DOMAIN = 'hin.ch'
+
+
+def collapse_one_per_domain(records: Iterable[dict]) -> List[dict]:
+    """Collapse to one-per-domain EXCEPT hin.ch.
+
+    Non-HIN: keep one recipient per practice domain (priority bucket wins
+    over general/other; within priority, TOP-tier local-parts win).
+
+    HIN (`*@hin.ch`): keep every address. Each HIN address is a specific
+    person on Switzerland's clinical secure-email network — they happen to
+    share a domain but are distinct recipients.
+    """
     best: Dict[str, dict] = {}
+    hin_all: List[dict] = []
+    hin_seen: Set[str] = set()
     bucket_rank = {'priority': 0, 'general': 1, 'other': 2}
     for r in records:
         dom = r['email'].split('@', 1)[1]
+        if dom == HIN_DOMAIN:
+            # Dedup HIN by exact email (same address might appear under
+            # multiple Craft entry duplicates — collapse those only).
+            if r['email'] in hin_seen:
+                continue
+            hin_seen.add(r['email'])
+            hin_all.append(dict(r))
+            continue
         key = (bucket_rank[r['bucket']],
                top_tier_rank(r['email'].split('@', 1)[0]) if r['bucket'] == 'priority' else 999)
         cur = best.get(dom)
@@ -122,7 +141,7 @@ def collapse_one_per_domain(records: Iterable[dict]) -> Dict[str, dict]:
             best[dom] = r2
     for r in best.values():
         r.pop('_key', None)
-    return best
+    return list(best.values()) + hin_all
 
 
 def write_csv(path: Path, rows: List[dict]) -> None:
@@ -150,17 +169,29 @@ def main():
     sent_emails, sent_domains = load_sent()
     print(f'Loaded {len(sent_emails)} already-sent emails / {len(sent_domains)} domains.')
 
-    # Build master pool — one-per-domain from the reclassified checkpoint.
+    # Build master pool — one-per-domain from the reclassified checkpoint
+    # (except hin.ch, which keeps every distinct address).
     all_records = list(iter_pool())
     print(f'Checkpoint yielded {len(all_records)} (entry, email) records.')
-    by_domain = collapse_one_per_domain(all_records)
-    print(f'One-per-domain pool: {len(by_domain)} unique domains.')
+    pool = collapse_one_per_domain(all_records)
+    non_hin = [r for r in pool if r['email'].split('@', 1)[1] != HIN_DOMAIN]
+    hin = [r for r in pool if r['email'].split('@', 1)[1] == HIN_DOMAIN]
+    print(f'Pool: {len(non_hin)} non-HIN domains + {len(hin)} HIN addresses = {len(pool)} total.')
 
-    # Fresh pool = domains not yet contacted.
-    fresh = [r for d, r in by_domain.items() if d not in sent_domains]
-    upgrades = [r for d, r in by_domain.items() if d in sent_domains and r['email'] not in sent_emails]
-    print(f'  fresh (new domain):       {len(fresh)}')
-    print(f'  upgrade (diff email, same domain as prior send): {len(upgrades)}')
+    # Fresh = email not yet sent.
+    #   - non-HIN: also dedup by-domain against sent_domains (don't re-contact
+    #     a practice at a different mailbox this week)
+    #   - HIN: only dedup by exact email (each HIN inbox is a distinct person)
+    fresh_non_hin = [r for r in non_hin
+                     if r['email'].split('@', 1)[1] not in sent_domains]
+    fresh_hin = [r for r in hin if r['email'] not in sent_emails]
+    upgrades = [r for r in non_hin
+                if r['email'].split('@', 1)[1] in sent_domains
+                and r['email'] not in sent_emails]
+    fresh = fresh_non_hin + fresh_hin
+    print(f'  fresh non-HIN (new domain):            {len(fresh_non_hin)}')
+    print(f'  fresh HIN (new inbox on clinical net): {len(fresh_hin)}')
+    print(f'  upgrade (diff email, same non-HIN domain as prior send): {len(upgrades)}')
 
     # A given day accumulates emails into `used_emails` so the next day
     # can't resurface them.
@@ -176,48 +207,74 @@ def main():
         return (0 if r['has_referral'] == 'yes' else 1,
                 r['canton'], r['email'])
 
+    # Helper: HIN addresses are all priority bucket. Separate for clearer
+    # audience slicing.
+    def is_hin(r):
+        return r['email'].split('@', 1)[1] == HIN_DOMAIN
+
+    # --- Day 1 (Fri 04-24) — cap 500 ---
+    # Finish hospitals-dach-20260423 remainder (62) + fresh non-HIN priority
+    # (referral-preferred) + first tranche of HIN TOP-tier (sekretariat /
+    # zuweiser / empfang).
     hospitals_priority = sorted(
         (r for r in fresh
-         if r['section'] == 'hospitals' and r['bucket'] == 'priority'),
+         if r['section'] == 'hospitals' and r['bucket'] == 'priority'
+         and not is_hin(r)),
         key=_pri_sort_key)
     small_priority = sorted(
         (r for r in fresh
          if r['section'] in ('groupPractices', 'medClinics', 'medicalCenters', 'clinics')
-         and r['bucket'] == 'priority'
-         and r['email'] not in {x['email'] for x in hospitals_priority}),
+         and r['bucket'] == 'priority' and not is_hin(r)),
         key=_pri_sort_key)
-    # Take all hospitals first (only ~130 anyway; 62 of those are the
-    # unsent-20260423 remainder), then fill with small sections.
-    day1 = hospitals_priority + small_priority
-    day1 = day1[:300]
+    hin_top = sorted(
+        (r for r in fresh
+         if is_hin(r)
+         and top_tier_rank(r['email'].split('@', 1)[0]) < 999),
+        key=lambda r: (r['canton'], r['email']))
+    day1 = hospitals_priority + small_priority[:200] + hin_top[:150]
+    day1 = day1[:500]
     for r in day1:
         used_emails.add(r['email'])
     write_csv(OUT_DIR / 'day1-20260424-fri.csv', day1)
     summary(day1, 'day1-20260424-fri')
 
-    # --- Day 2 (Mon 04-27) ---
-    # Conservative Monday: fresh priority from small sections + clinics.
-    # Cap at 200 (not 250) to leave ~100 fresh priority in the pool for
-    # Tuesday's bigger batch.
+    # --- Day 2 (Mon 04-27) — cap 400 ---
+    # Light Monday. Remaining fresh non-HIN priority + more HIN TOP-tier.
     small_priority_rest = sorted(
         (r for r in fresh
          if r['section'] in ('groupPractices', 'medClinics', 'medicalCenters', 'clinics')
-         and r['bucket'] == 'priority'
+         and r['bucket'] == 'priority' and not is_hin(r)
          and r['email'] not in used_emails),
         key=_pri_sort_key)
+    hin_top_rest = sorted(
+        (r for r in fresh
+         if is_hin(r)
+         and top_tier_rank(r['email'].split('@', 1)[0]) < 999
+         and r['email'] not in used_emails),
+        key=lambda r: (r['canton'], r['email']))
+    # Mix: up to 200 non-HIN, then HIN to fill 400.
     day2 = small_priority_rest[:200]
+    remaining = 400 - len(day2)
+    day2 = day2 + hin_top_rest[:remaining]
+    if len(day2) < 400:
+        # Pull any remaining HIN to hit 400.
+        hin_rest = sorted(
+            (r for r in fresh
+             if is_hin(r) and r['email'] not in used_emails
+             and r['email'] not in {x['email'] for x in day2}),
+            key=lambda r: (r['canton'], r['email']))
+        day2 = day2 + hin_rest[: 400 - len(day2)]
+    day2 = day2[:400]
     for r in day2:
         used_emails.add(r['email'])
     write_csv(OUT_DIR / 'day2-20260427-mon.csv', day2)
     summary(day2, 'day2-20260427-mon')
 
-    # --- Day 3 (Tue 04-28) ---
-    # Week 2 starts. Target 250 — priority leftovers + all top-tier upgrades
-    # + pad from other+has-referral=yes to 250.  Leaves most of the
-    # other+referral pool for Day 4.
+    # --- Day 3 (Tue 04-28) — cap 800 ---
+    # Week 2 ramp. Remaining non-HIN priority + all top-tier upgrades + HIN.
     remaining_priority = sorted(
         (r for r in fresh
-         if r['bucket'] == 'priority'
+         if r['bucket'] == 'priority' and not is_hin(r)
          and r['email'] not in used_emails),
         key=_pri_sort_key)
     day3_upgrades = [
@@ -226,50 +283,51 @@ def main():
         and top_tier_rank(r['email'].split('@', 1)[0]) < 999
         and r['email'] not in used_emails
     ]
-    other_ref_pool = sorted(
+    hin_for_day3 = sorted(
         (r for r in fresh
-         if r['bucket'] == 'other' and r['has_referral'] == 'yes'
-         and r['email'] not in used_emails),
+         if is_hin(r) and r['email'] not in used_emails),
         key=lambda r: (r['canton'], r['email']))
     day3_base = remaining_priority + day3_upgrades
-    pad_needed = max(0, 250 - len(day3_base))
-    day3 = day3_base + other_ref_pool[:pad_needed]
-    day3 = day3[:250]
+    remaining = max(0, 800 - len(day3_base))
+    day3 = day3_base + hin_for_day3[:remaining]
+    day3 = day3[:800]
     for r in day3:
         used_emails.add(r['email'])
     write_csv(OUT_DIR / 'day3-20260428-tue.csv', day3)
     summary(day3, 'day3-20260428-tue')
 
-    # --- Day 4 (Wed 04-29) ---
-    # "Other + referral" primary day. Target 200. Takes remaining other+ref,
-    # then tops up from other no-referral if needed.
-    other_ref_remainder = sorted(
+    # --- Day 4 (Wed 04-29) — cap 1000 ---
+    # Peak HIN day. Bulk HIN + introduce "other + referral" non-HIN axis.
+    hin_for_day4 = sorted(
         (r for r in fresh
-         if r['bucket'] == 'other' and r['has_referral'] == 'yes'
+         if is_hin(r) and r['email'] not in used_emails),
+        key=lambda r: (r['canton'], r['email']))
+    other_ref = sorted(
+        (r for r in fresh
+         if not is_hin(r) and r['bucket'] == 'other'
+         and r['has_referral'] == 'yes'
          and r['email'] not in used_emails),
         key=lambda r: (r['canton'], r['email']))
-    other_no_ref_fallback = sorted(
-        (r for r in fresh
-         if r['bucket'] == 'other' and r['has_referral'] == 'no'
-         and r['email'] not in used_emails),
-        key=lambda r: (r['canton'], r['email']))
-    day4 = other_ref_remainder + other_no_ref_fallback[: max(0, 200 - len(other_ref_remainder))]
-    day4 = day4[:200]
+    day4 = hin_for_day4[:800] + other_ref[:200]
+    day4 = day4[:1000]
     for r in day4:
         used_emails.add(r['email'])
     write_csv(OUT_DIR / 'day4-20260429-wed.csv', day4)
     summary(day4, 'day4-20260429-wed')
 
-    # --- Day 5 (Thu 04-30) ---
-    # Week 2 end — CONDITIONAL on Wed metrics holding. Target 200.
-    # "Other" no-referral remainder + fresh general. If Wed
-    # spam/bounce/unsub ticks up, skip this day entirely.
-    other_no_ref = sorted(
+    # --- Day 5 (Thu 04-30) — cap 1200 (CONDITIONAL on Wed metrics) ---
+    # HIN remainder + other no-referral + fresh general.
+    hin_for_day5 = sorted(
         (r for r in fresh
-         if r['bucket'] in ('other', 'general') and r['has_referral'] == 'no'
+         if is_hin(r) and r['email'] not in used_emails),
+        key=lambda r: (r['canton'], r['email']))
+    other_rest = sorted(
+        (r for r in fresh
+         if not is_hin(r) and r['bucket'] in ('other', 'general')
          and r['email'] not in used_emails),
         key=lambda r: (r['canton'], r['email']))
-    day5 = other_no_ref[:200]
+    day5 = hin_for_day5[:900] + other_rest[:300]
+    day5 = day5[:1200]
     for r in day5:
         used_emails.add(r['email'])
     write_csv(OUT_DIR / 'day5-20260430-thu.csv', day5)
